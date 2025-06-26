@@ -136,14 +136,14 @@
 @font-face {
   font-display: swap;
   font-style: bold;
-  src: url("/fonts/WorkSansBold");
+  src: url("/fonts/WorkSansBold.ttf");
   font-family: "WorkSansBold";
   font-weight: 700;
 }
 @font-face {
   font-display: swap;
   font-style: medium;
-  src: url("/fonts/WorkSansMedium");
+  src: url("/fonts/WorkSansMedium.ttf");
   font-family: "WorkSansMedium";
   font-weight: 500;
 }
@@ -151,14 +151,21 @@
 @font-face {
   font-display: swap;
   font-style: semibold;
-  src: url("/fonts/WorkSansSemiBold");
+  src: url("/fonts/WorkSansSemiBold.ttf");
   font-family: "WorkSansSemiBold";
   font-weight: 600;
 }
 @font-face {
   font-display: swap;
   font-style: normal;
-  src: url("/fonts/WorkSansRegular");
+  src: url("/fonts/WorkSansRegular.ttf");
   font-family: "WorkSansRegular";
   font-weight: 400;
+}
+@font-face {
+  font-display: swap;
+  font-style: medium;
+  src: url("/fonts/BarlowMedium.ttf");
+  font-family: "BarlowMedium";
+  font-weight: 500;
 }

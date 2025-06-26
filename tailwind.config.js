@@ -25,6 +25,7 @@ export default {
         OutfitBold: ['OutfitBold', 'sans-serif'],
         PublicSansMedium : ['PublicSansMedium', 'sans-serif'],
         Urbanist: ['Urbanist', 'sans-serif'],
+        BarlowMedium: ['BarlowMedium', 'sans-serif'],
       },
       colors: {
         primaryBlue: '#4BADE6', // Blue
@@ -33,6 +34,9 @@ export default {
         primarGray: '#666666', // Gray
         secondaryGray: '#6E6E6E', // Light Gray
         dark: '#464255', // Dark
+      },
+      boxShadow: {
+        'custom': '2px 2px 10px 0px #00000040',
       },
     },
   },
