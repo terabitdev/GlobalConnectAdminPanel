@@ -9,6 +9,7 @@ export default {
       fontFamily: {
         outfit: ['Outfit', 'sans-serif'],
         OutfitBold: ['OutfitBold', 'sans-serif'],
+        OutfitSemiBold: ['OutfitSemiBold', 'sans-serif'],
         InterTight: ['Inter', 'sans-serif'],
         Inter: ['Inter', 'sans-serif'],
         Objective: ['Objective', 'sans-serif'],

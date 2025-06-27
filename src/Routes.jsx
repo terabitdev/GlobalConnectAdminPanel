@@ -3,12 +3,14 @@ import { useRoutes } from "react-router-dom";
 import LoginPage from "./Pages/LoginPage";
 import Dashboard from "./Pages/Dashboard";
 import UsersManagement from "./Pages/UsersManagement";
+import UserDetails from "./Components/UsersManagement/UserDetails";
 
 const ProjectRoutes = () => {
     let element = useRoutes([
         { path: "/", element: <LoginPage /> },
         { path: "/dashboard", element: <Dashboard /> }, 
-        { path: "/users-management", element: <UsersManagement /> },    
+        { path: "/users-management", element: <UsersManagement /> },
+        { path: "/users-management/user-details", element: <UserDetails /> },
     ]);
     return element;
   };

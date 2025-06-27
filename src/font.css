@@ -28,6 +28,13 @@
 }
 @font-face {
   font-display: swap;
+  font-style: semibold;
+  src: url("/fonts/OutfitSemiBold.ttf");
+  font-family: "OutfitSemiBold";
+  font-weight: 600;
+}
+@font-face {
+  font-display: swap;
   font-style: normal;
   src: url("/fonts/RobotoRomanBold.ttf");
   font-family: "Roboto";
@@ -168,4 +175,11 @@
   src: url("/fonts/BarlowMedium.ttf");
   font-family: "BarlowMedium";
   font-weight: 500;
+}
+@font-face {
+  font-display: swap;
+  font-style: bold;
+  src: url("/fonts/Urbanist.ttf");
+  font-family: "Urbanist";
+  font-weight: 700;
 }
