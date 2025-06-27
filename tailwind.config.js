@@ -40,7 +40,28 @@ export default {
       },
     },
   },
-  plugins: [],
+  plugins: [
+     function ({ addUtilities }) {
+      addUtilities({
+        ".scrollbar-hide": {
+          "scrollbar-width": "none", // Firefox
+          "-ms-overflow-style": "none", // IE/Edge
+        },
+        ".scrollbar-hide::-webkit-scrollbar": {
+          display: "none", // Chrome, Safari
+        },
+        ".scrollbar-thin": {
+          "scrollbar-width": "thin", // Firefox
+          "-ms-overflow-style": "auto", // IE/Edge
+        },
+        ".scrollbar-thin::-webkit-scrollbar": {
+          width: "8px", // Chrome, Safari
+          height: "8px",
+        },
+                      
+      });
+    },
+  ],
 }
 
 
