@@ -90,7 +90,7 @@ const Sidebar = forwardRef(({ onItemClick }, ref) => {
 
       {/* Sidebar */}
       <div className={`
-        fixed lg:relative top-0 left-0 h-full w-[17rem] bg-white shadow-custom flex flex-col z-50 
+        fixed lg:relative top-0 left-0 h-full w-full min-w-[17rem] max-w-[17rem]  bg-white shadow-custom flex flex-col z-50 
         transform transition-transform duration-300 ease-in-out
         lg:transform-none lg:transition-none
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}

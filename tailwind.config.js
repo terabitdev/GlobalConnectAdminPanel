@@ -20,7 +20,7 @@ export default {
         ManropeSemiBold: ['ManropeSemiBold', 'sans-serif'],
         monrope: ['Manrope', 'sans-serif'],
         Roboto: ['Roboto', 'sans-serif'],
-        PlusJakarta: ['Plus Jakarta', 'sans-serif'],
+        PlusJakartaSans: ['PlusJakartaSans', 'sans-serif'],
         SFProDisplay: ['SFProDisplay', 'sans-serif'],
         DMSansRegular: ['DMSans-Regular', 'sans-serif'],
         OutfitBold: ['OutfitBold', 'sans-serif'],
@@ -34,6 +34,7 @@ export default {
         secondaryBlack: '#333333', // Black
         primarGray: '#666666', // Gray
         secondaryGray: '#6E6E6E', // Light Gray
+        grayModern: '#9AA4B2', // Modern Gray
         dark: '#464255', // Dark
       },
       boxShadow: {

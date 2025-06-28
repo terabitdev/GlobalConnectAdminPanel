@@ -552,7 +552,7 @@ function UsersManagement() {
   );
 
   return (
-    <div className="flex h-screen bg-gray-50 font-PlusJakarta">
+    <div className="flex h-screen  bg-gray-50 font-PlusJakarta">
       {/* Sidebar Component */}
       <Sidebar 
         ref={sidebarRef}
@@ -561,9 +561,9 @@ function UsersManagement() {
       />
 
       {/* Main Content */}
-      <div className="flex-1">
+      <div className="flex-1  ">
         {/* Header with hamburger menu */}
-        <div className="w-full h-16 shadow-custom bg-[#FAFAFB] flex items-center px-4 lg:px-6">
+        <div className="w-full h-16 shadow-custom bg-[#FAFAFB] flex items-center px-4 lg:px-6 ">
           <button
             onClick={openDrawer}
             className="lg:hidden p-2 rounded-lg hover:bg-gray-200 transition-colors mr-3"
@@ -615,7 +615,7 @@ function UsersManagement() {
           </div>
 
           {/* Desktop Table View - Hidden on Mobile */}
-          <div className="hidden lg:block bg-white rounded-lg shadow-sm border overflow-hidden font-outfit">
+          <div className="hidden lg:block  bg-white rounded-lg shadow-sm border overflow-hidden font-outfit">
             <div className="overflow-x-auto">
               <table className="w-full">
                 <thead className="bg-gray-50 border-b border-gray-200">

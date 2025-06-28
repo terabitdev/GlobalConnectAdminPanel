@@ -4,6 +4,7 @@ import LoginPage from "./Pages/LoginPage";
 import Dashboard from "./Pages/Dashboard";
 import UsersManagement from "./Pages/UsersManagement";
 import UserDetails from "./Components/UsersManagement/UserDetails";
+import EventManagement from "./Pages/EventManagement";
 
 const ProjectRoutes = () => {
     let element = useRoutes([
@@ -11,6 +12,7 @@ const ProjectRoutes = () => {
         { path: "/dashboard", element: <Dashboard /> }, 
         { path: "/users-management", element: <UsersManagement /> },
         { path: "/users-management/user-details", element: <UserDetails /> },
+        { path: "/events", element: <EventManagement /> },
     ]);
     return element;
   };

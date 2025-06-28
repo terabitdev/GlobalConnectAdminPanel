@@ -102,7 +102,7 @@ const UserDetails = () => {
           <div className="w-full">
             <div className="bg-[#FAFAFB]  p-6 sm:p-0 ">
               {/* Header */}
-              <h2 className="text-xl lg:text-2xl font-bold text-gray-900 mb-8 text-center lg:text-left">User Details</h2>
+              <h2 className="text-xl lg:text-2xl font-bold text-black font-PlusJakarta mb-8 text-center lg:text-left">User Details</h2>
               
               {/* Profile Picture */}
               <div className="flex justify-center mb-8">
@@ -110,7 +110,7 @@ const UserDetails = () => {
                   <img
                     src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face"
                     alt="Profile"
-                    className="w-20 h-20 lg:w-24 lg:h-24 rounded-full object-cover border-4 border-white shadow-md"
+                    className="w-20 h-20 lg:w-28 lg:h-28 rounded-full object-cover "
                   />
                 </div>
               </div>
@@ -119,20 +119,20 @@ const UserDetails = () => {
               <div className="space-y-6">
                 {/* Full Name */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-noraml text-[#0D121C] mb-2">
                     Full Name
                   </label>
                   <input
                     type="text"
                     value={formData.fullName}
                     onChange={(e) => handleInputChange('fullName', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-Urbanist"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakarta font-normal text-lg"
                   />
                 </div>
 
                 {/* Date of Birth */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-noraml text-[#0D121C] mb-2">
                     Date of Birth
                   </label>
                   <div className="relative">
@@ -140,7 +140,7 @@ const UserDetails = () => {
                       type="text"
                       value={formData.dateOfBirth}
                       onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-Urbanist"
+                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakarta font-normal text-lg"
                     />
                     <Calendar 
                       size={20} 
@@ -151,13 +151,13 @@ const UserDetails = () => {
 
                 {/* Select Nationality */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-noraml text-[#0D121C] mb-2">
                     Select Nationality
                   </label>
                   <div className="relative">
                     <button
                       onClick={() => setIsNationalityOpen(!isNationalityOpen)}
-                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] text-left font-Urbanist"
+                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] text-left font-PlusJakarta font-normal text-lg"
                     >
                       {formData.nationality}
                     </button>
@@ -176,7 +176,7 @@ const UserDetails = () => {
                               handleInputChange('nationality', nationality);
                               setIsNationalityOpen(false);
                             }}
-                            className="w-full px-4 py-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none font-Urbanist"
+                            className="w-full px-4 py-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none font-PlusJakarta font-normal text-lg"
                           >
                             {nationality}
                           </button>
@@ -188,27 +188,27 @@ const UserDetails = () => {
 
                 {/* Home City */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-noraml text-[#0D121C] mb-2">
                     Home City
                   </label>
                   <input
                     type="text"
                     value={formData.homeCity}
                     onChange={(e) => handleInputChange('homeCity', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-Urbanist"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakarta font-normal text-lg"
                   />
                 </div>
 
                 {/* Countries Visited */}
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                  <label className="block text-lg font-noraml text-[#0D121C] mb-2">
                     Countries Visited
                   </label>
                   <textarea
                     value={formData.countriesVisited}
                     onChange={(e) => handleInputChange('countriesVisited', e.target.value)}
                     rows={4}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] resize-none font-Urbanist"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] resize-none font-PlusJakarta font-normal text-lg"
                   />
                 </div>
               </div>
@@ -217,13 +217,13 @@ const UserDetails = () => {
               <div className="mt-8 flex flex-col sm:flex-row gap-4">
                 <button 
                   onClick={handleSaveChanges}
-                  className="flex-1 bg-primaryBlue hover:bg-blue-600 text-white py-3 px-6 rounded-lg transition-colors font-medium"
+                  className="flex-1 bg-primaryBlue  text-white py-3 px-6 rounded-lg  font-medium"
                 >
                   Save Changes
                 </button>
                 <button 
                   onClick={handleBackToUsers}
-                  className="flex-1 bg-white border border-gray-300 text-gray-700 hover:bg-gray-50 py-3 px-6 rounded-lg transition-colors font-medium"
+                  className="flex-1 bg-white border border-gray-300 text-gray-700  py-3 px-6 rounded-lg font-medium"
                 >
                   Cancel
                 </button>
