@@ -331,7 +331,7 @@ function AddRestaurant() {
                   <button
                     type="button"
                     onClick={handleBackToRestaurants}
-                    className="flex-1 bg-white border border-gray-300 text-thirdBlack  py-3 px-6 rounded-lg  font-medium"
+                    className="flex-1 bg-white border border-gray-300 text-primaryBlue  py-3 px-6 rounded-lg  font-medium"
                   >
                     Cancel
                   </button>

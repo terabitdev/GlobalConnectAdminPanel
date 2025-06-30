@@ -312,8 +312,8 @@ function EventManagement() {
                     {/* Title, Buttons, and Featured Badge */}
                     <div className="flex items-center justify-between mb-2">
                       <h3 className="text-lg font-semibold text-[#212121] font-Urbanist">{event.title}</h3>
-                      <div className="flex items-center space-x-3">
-                        <div className="flex space-x-2">
+                      <div className="flex items-center space-x-4">
+                        <div className="flex space-x-4">
                           <button
                             onClick={() => handleEditEvent(event.id)}
                             className="bg-primaryBlue text-white px-4 py-1  rounded text-sm "
@@ -328,7 +328,7 @@ function EventManagement() {
                           </button>
                         </div>
                         {event.featured && (
-                          <span className="px-2 py-2 bg-[#FDE0E0] text-black text-xs rounded flex items-center">
+                          <span className="px-2 py-[5px] bg-[#FDE0E0] text-black text-sm rounded flex items-center">
                             <FaStar size={10} className="mr-1" />
                             Featured
                           </span>

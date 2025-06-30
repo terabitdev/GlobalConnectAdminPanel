@@ -1,25 +1,65 @@
 
+
 import React, { useEffect, forwardRef, useImperativeHandle, useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { LogOut, X } from "lucide-react";
 
 const Sidebar = forwardRef(({ onItemClick }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const params = useParams();
 
   const sidebarItems = [
-    { name: "Dashboard", iconPath: "/assets/dashboard.svg", route: "/dashboard" },
-    { name: "Users", iconPath: "/assets/user.svg", route: "/users-management" },
-    { name: "Event Management", iconPath: "/assets/event.svg", route: "/events" },
-    { name: "Restaurant Management", iconPath: "/assets/restaurant.svg", route: "/restaurants" },
-    { name: "Tips Management", iconPath: "/assets/tips.svg", route: "/tips" }
+    { name: "Dashboard", iconPath: "/assets/dashboard.svg", route: "/dashboard", matchPaths: ["/dashboard"] },
+    { name: "Users", iconPath: "/assets/user.svg", route: "/users-management", matchPaths: ["/users-management", "/users"] },
+    { name: "Event Management", iconPath: "/assets/event.svg", route: "/events", matchPaths: ["/events", "/event-management"] },
+    { name: "Restaurant Management", iconPath: "/assets/restaurant.svg", route: "/restaurants", matchPaths: ["/restaurants", "/restaurant-management"] },
+    { name: "Tips Management", iconPath: "/assets/tips.svg", route: "/tips", matchPaths: ["/tips", "/tips-management"] },
   ];
 
-  // Get current active item based on current route
+  // Enhanced route matching that handles nested routes and URL params
   const getActiveItem = () => {
-    const currentItem = sidebarItems.find(item => location.pathname === item.route);
-    return currentItem ? currentItem.name : "Dashboard";
+    const currentPath = location.pathname;
+    const searchParams = new URLSearchParams(location.search);
+    
+    // Log current route info for debugging
+    console.log("Current pathname:", currentPath);
+    console.log("URL params:", params);
+    console.log("Search params:", Object.fromEntries(searchParams));
+    
+    // Find matching sidebar item based on current path
+    const activeItem = sidebarItems.find(item => {
+      // Check exact match first
+      if (currentPath === item.route) {
+        return true;
+      }
+      
+      // Check if current path starts with any of the match paths
+      return item.matchPaths.some(matchPath => {
+        // Handle nested routes (e.g., /events/add-event should match /events)
+        if (currentPath.startsWith(matchPath)) {
+          // Make sure it's a proper path segment match, not just a string prefix
+          const remainingPath = currentPath.slice(matchPath.length);
+          return remainingPath === '' || remainingPath.startsWith('/');
+        }
+        return false;
+      });
+    });
+
+    return activeItem ? activeItem.name : "Dashboard";
+  };
+
+  // Get route information for current page
+  const getCurrentRouteInfo = () => {
+    return {
+      pathname: location.pathname,
+      search: location.search,
+      hash: location.hash,
+      params: params,
+      searchParams: Object.fromEntries(new URLSearchParams(location.search)),
+      activeItem: getActiveItem()
+    };
   };
 
   const handleLogout = () => {
@@ -30,12 +70,15 @@ const Sidebar = forwardRef(({ onItemClick }, ref) => {
   };
 
   const handleItemClick = (itemName, route) => {
+    // Log navigation info
+    console.log(`Navigating from ${location.pathname} to ${route}`);
+    
     // Navigate to the route
     navigate(route);
     
-    // Call parent callback if provided
+    // Call parent callback if provided with current route info
     if (onItemClick) {
-      onItemClick(itemName);
+      onItemClick(itemName, getCurrentRouteInfo());
     }
     
     setIsOpen(false); // Close drawer when item is clicked on mobile
@@ -48,7 +91,9 @@ const Sidebar = forwardRef(({ onItemClick }, ref) => {
   useImperativeHandle(ref, () => ({
     openDrawer,
     closeDrawer,
-    isOpen
+    isOpen,
+    getCurrentRouteInfo,
+    getActiveItem
   }));
 
   // Close drawer on ESC key press
@@ -76,6 +121,17 @@ const Sidebar = forwardRef(({ onItemClick }, ref) => {
     };
   }, [isOpen]);
 
+  // Update active item when route changes
+  useEffect(() => {
+    const routeInfo = getCurrentRouteInfo();
+    console.log("Route changed:", routeInfo);
+    
+    // Call parent callback when route changes
+    if (onItemClick) {
+      onItemClick(routeInfo.activeItem, routeInfo);
+    }
+  }, [location.pathname, location.search, params]);
+
   const activeItem = getActiveItem();
 
   return (
@@ -90,7 +146,7 @@ const Sidebar = forwardRef(({ onItemClick }, ref) => {
 
       {/* Sidebar */}
       <div className={`
-        fixed lg:relative top-0 left-0 h-full w-full min-w-[17rem] max-w-[17rem]  bg-white shadow-custom flex flex-col z-50 
+        fixed lg:relative top-0 left-0 h-full w-full min-w-[17rem] max-w-[17rem] bg-white shadow-custom flex flex-col z-50 
         transform transition-transform duration-300 ease-in-out
         lg:transform-none lg:transition-none
         ${isOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
@@ -113,14 +169,14 @@ const Sidebar = forwardRef(({ onItemClick }, ref) => {
 
         {/* Navigation */}
         <nav className="flex-1 p-4">
-          <ul className="space-y-2 ">
+          <ul className="space-y-2">
             {sidebarItems.map((item, index) => {
               const isActive = item.name === activeItem;
               return (
                 <li key={index}>
                   <button
                     onClick={() => handleItemClick(item.name, item.route)}
-                    className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors  w-full text-left ${
+                    className={`flex items-center space-x-3 px-3 py-2 rounded-lg transition-colors w-full text-left ${
                       isActive
                         ? "bg-blue-50 text-primaryBlue"
                         : "text-dark hover:bg-gray-50"
@@ -149,7 +205,7 @@ const Sidebar = forwardRef(({ onItemClick }, ref) => {
         <div className="p-4 border-t border-gray-200">
           <button 
             onClick={handleLogout}
-            className="flex items-center space-x-3 px-3 py-2 text-white bg-primaryBlue rounded-lg  w-full"
+            className="flex items-center space-x-3 px-3 py-2 text-white bg-primaryBlue rounded-lg w-full"
           >
             <img src="/assets/logout.svg" alt="logout" />
             <span className="font-BarlowMedium">Logout</span>

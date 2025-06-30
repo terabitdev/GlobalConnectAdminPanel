@@ -47,17 +47,13 @@ const UserDetails = () => {
     sidebarRef.current?.openDrawer();
   };
 
-  const handleSaveChanges = () => {
-    console.log('Saving user details:', formData);
-    // Add save logic here
-  };
 
   const handleBackToUsers = () => {
     navigate('/users-management');
   };
 
   return (
-    <div className="flex h-screen bg-gray-50 font-PlusJakarta">
+    <div className="flex h-screen bg-gray-50 font-PlusJakartaSans">
       {/* Sidebar Component */}
       <Sidebar 
         ref={sidebarRef}
@@ -126,7 +122,7 @@ const UserDetails = () => {
                     type="text"
                     value={formData.fullName}
                     onChange={(e) => handleInputChange('fullName', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakarta font-normal text-lg"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PublicSansMedium font-normal text-lg"
                   />
                 </div>
 
@@ -140,7 +136,7 @@ const UserDetails = () => {
                       type="text"
                       value={formData.dateOfBirth}
                       onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
-                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakarta font-normal text-lg"
+                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PublicSansMedium font-normal text-lg"
                     />
                     <Calendar 
                       size={20} 
@@ -157,7 +153,7 @@ const UserDetails = () => {
                   <div className="relative">
                     <button
                       onClick={() => setIsNationalityOpen(!isNationalityOpen)}
-                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] text-left font-PlusJakarta font-normal text-lg"
+                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] text-left font-PublicSansMedium font-normal text-lg"
                     >
                       {formData.nationality}
                     </button>
@@ -176,7 +172,7 @@ const UserDetails = () => {
                               handleInputChange('nationality', nationality);
                               setIsNationalityOpen(false);
                             }}
-                            className="w-full px-4 py-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none font-PlusJakarta font-normal text-lg"
+                            className="w-full px-4 py-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none font-PublicSansMedium font-normal text-lg"
                           >
                             {nationality}
                           </button>
@@ -195,7 +191,7 @@ const UserDetails = () => {
                     type="text"
                     value={formData.homeCity}
                     onChange={(e) => handleInputChange('homeCity', e.target.value)}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakarta font-normal text-lg"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PublicSansMedium font-normal text-lg"
                   />
                 </div>
 
@@ -208,25 +204,9 @@ const UserDetails = () => {
                     value={formData.countriesVisited}
                     onChange={(e) => handleInputChange('countriesVisited', e.target.value)}
                     rows={4}
-                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] resize-none font-PlusJakarta font-normal text-lg"
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] resize-none font-PublicSansMedium font-normal text-lg"
                   />
                 </div>
-              </div>
-
-              {/* Save Button */}
-              <div className="mt-8 flex flex-col sm:flex-row gap-4">
-                <button 
-                  onClick={handleSaveChanges}
-                  className="flex-1 bg-primaryBlue  text-white py-3 px-6 rounded-lg  font-medium"
-                >
-                  Save Changes
-                </button>
-                <button 
-                  onClick={handleBackToUsers}
-                  className="flex-1 bg-white border border-gray-300 text-gray-700  py-3 px-6 rounded-lg font-medium"
-                >
-                  Cancel
-                </button>
               </div>
             </div>
           </div>

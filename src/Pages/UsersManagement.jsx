@@ -280,7 +280,7 @@ function UsersManagement() {
                     <th className="text-left py-3 px-4 font-semibold text-black w-[12%]">
                       City
                     </th>
-                    <th className="text-center py-3 px-4 font-semibold text-black w-[10%]">
+                    <th className="text-left 2xl:text-center py-3 px-4 font-semibold text-black w-[14%]">
                       Actions
                     </th>
                   </tr>

@@ -155,11 +155,11 @@ function TipsManagement() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-1">
-                 <img src="/assets/like.svg" className="w-4 h-4" />
+                <img src="/assets/like.svg" className="w-4 h-4" />
                 <span className="text-xs text-gray-600">{tip.likes}</span>
               </div>
               <div className="flex items-center space-x-1">
-                 <img src="/assets/dislike.svg" className="w-4 h-4" />
+                <img src="/assets/dislike.svg" className="w-4 h-4" />
                 <span className="text-xs text-gray-600">{tip.dislikes}</span>
               </div>
             </div>
@@ -294,12 +294,14 @@ function TipsManagement() {
                             {tip.userName}
                           </h4>
                           <div className="flex items-center space-x-2">
-                            <img src="/assets/flages/span.png" alt="span" className="w-3 h-3" />
-                          <span
-                            className="text-sm text-black font-WorkSansRegular "
-                          >
-                            {tip.userBadge}
-                          </span>
+                            <img
+                              src="/assets/flages/span.png"
+                              alt="span"
+                              className="w-3 h-3"
+                            />
+                            <span className="text-sm text-black font-WorkSansRegular ">
+                              {tip.userBadge}
+                            </span>
                           </div>
                         </div>
                         <span className="text-[15px] font-Urbanist text-primaryBlue">
@@ -314,41 +316,42 @@ function TipsManagement() {
                         Delete
                       </button>
                     </div>
+                  </div>
+                </div>
 
-                    {/* Tip Title */}
-                    <h3 className="text-lg font-semibold text-[#212121] font-Urbanist ">
-                      {tip.title}
-                    </h3>
+                <div>
+                  {/* Tip Title */}
+                  <h3 className="text-lg font-semibold text-[#212121] font-Urbanist ">
+                    {tip.title}
+                  </h3>
 
-                    {/* Description */}
-                    <p className="text-secondaryGray font-Urbanist text-[15px] leading-relaxed ">
-                      {tip.description}
-                    </p>
+                  {/* Description */}
+                  <p className="text-secondaryGray font-Urbanist text-[15px] leading-relaxed ">
+                    {tip.description}
+                  </p>
 
-                     {/* location */}
-                    <div className="flex items-center space-x-2 my-1 ">
-                        <img src="/assets/location.svg" className="w-4 h-4" />
+                  {/* location */}
+                  <div className="flex items-center space-x-2 my-1 ">
+                    <img src="/assets/location.svg" className="w-4 h-4" />
                     <p className="text-black font-WorkSansRegular text-xs leading-relaxed ">
-                    
                       {tip.location}
                     </p>
-                    </div>
+                  </div>
 
-                    {/* Like/Dislike and Category */}
-                    <div className="flex items-center justify-between font-WorkSansRegular">
-                      <div className="flex items-center space-x-4">
-                        <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-full">
-                          <img src="/assets/like.svg" className="w-4 h-4" />
-                          <span className="text-sm  text-secondaryGray">
-                            {tip.likes}
-                          </span>
-                        </div>
-                        <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-full">
-                          <img src="/assets/dislike.svg" className="w-4 h-4" />
-                          <span className="text-sm font-medium text-secondaryGray">
-                            {tip.dislikes}
-                          </span>
-                        </div>
+                  {/* Like/Dislike and Category */}
+                  <div className="flex items-center justify-between font-WorkSansRegular">
+                    <div className="flex items-center space-x-4">
+                      <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-full">
+                        <img src="/assets/like.svg" className="w-4 h-4" />
+                        <span className="text-sm  text-secondaryGray">
+                          {tip.likes}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2 bg-white px-4 py-2 rounded-full">
+                        <img src="/assets/dislike.svg" className="w-4 h-4" />
+                        <span className="text-sm font-medium text-secondaryGray">
+                          {tip.dislikes}
+                        </span>
                       </div>
                     </div>
                   </div>
