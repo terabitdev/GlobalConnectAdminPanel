@@ -183,3 +183,17 @@
   font-family: "Urbanist";
   font-weight: 700;
 }
+@font-face {
+  font-display: swap;
+  font-style: normal;
+  src: url("/fonts/WorkSansRegular.ttf");
+  font-family: "WorkSansRegular";
+  font-weight: 400;
+}
+@font-face {
+  font-display: swap;
+  font-style: medium;
+  src: url("/fonts/WorkSansMedium.ttf");
+  font-family: "WorkSansMedium";
+  font-weight: 500;
+}

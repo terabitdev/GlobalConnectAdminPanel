@@ -5,6 +5,10 @@ import Dashboard from "./Pages/Dashboard";
 import UsersManagement from "./Pages/UsersManagement";
 import UserDetails from "./Components/UsersManagement/UserDetails";
 import EventManagement from "./Pages/EventManagement";
+import AddEvent from "./Components/EventManagement/AddEvent";
+import RestaurantManagement from "./Pages/RestaurantManagement";
+import AddRestaurant from "./Components/RestaurantManagement/AddRestaurant";
+import TipsManagement from "./Pages/TipsManagement";
 
 const ProjectRoutes = () => {
     let element = useRoutes([
@@ -13,6 +17,10 @@ const ProjectRoutes = () => {
         { path: "/users-management", element: <UsersManagement /> },
         { path: "/users-management/user-details", element: <UserDetails /> },
         { path: "/events", element: <EventManagement /> },
+        { path: "/events/add-event", element: <AddEvent /> },
+        { path: "/restaurants", element: <RestaurantManagement /> },
+        { path: "/restaurants/add-restaurant", element: <AddRestaurant /> },
+        { path: "/tips", element: <TipsManagement /> },
     ]);
     return element;
   };

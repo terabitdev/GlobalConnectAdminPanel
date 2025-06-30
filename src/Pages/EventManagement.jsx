@@ -5,6 +5,7 @@ import { Search, ChevronDown, Plus, Menu, Edit, Eye, MapPin, Calendar, Users, St
 import { FaStar } from "react-icons/fa6";
 import Sidebar from "../Components/Sidebar";
 import { FaCaretDown } from "react-icons/fa";
+import { useNavigate } from "react-router";
 
 function EventManagement() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -13,6 +14,7 @@ function EventManagement() {
   const [selectedLocation, setSelectedLocation] = useState("All Status");
   const [activeMenuItem, setActiveMenuItem] = useState("Event Management");
   const sidebarRef = useRef();
+  const navigate = useNavigate();
 
   const events = [
     {
@@ -73,6 +75,8 @@ function EventManagement() {
 
   const handleAddEvent = () => {
     console.log("Add new event clicked");
+    // Navigate to add event page or open modal
+    navigate("/events/add-event");
     // Add navigation logic here
   };
 
@@ -113,7 +117,7 @@ function EventManagement() {
         />
         <div className="flex-1">
           <div className="flex items-start justify-between mb-2">
-            <h3 className="font-semibold text-gray-900 text-lg leading-tight">{event.title}</h3>
+            <h3 className="font-semibold  text-lg leading-tight">{event.title}</h3>
             {event.featured && (
               <span className="ml-2 px-2 py-1 bg-red-100 text-red-600 text-xs rounded-full flex-shrink-0">
                 <Star size={10} className="inline mr-1" />
@@ -232,7 +236,7 @@ function EventManagement() {
             </div>
 
             {/* Filter Dropdowns */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:grid-cols-5 lg:grid-cols-5">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:grid-cols-5 lg:grid-cols-5 2xl:grid-cols-8">
               {/* Event Type Filter */}
               <div className="relative sm:max-w-[12.5rem] sm:w-full">
                 <select
@@ -308,7 +312,7 @@ function EventManagement() {
                   <div className="flex-1">
                     {/* Title, Buttons, and Featured Badge */}
                     <div className="flex items-center justify-between mb-2">
-                      <h3 className="text-lg font-semibold text-gray-900">{event.title}</h3>
+                      <h3 className="text-lg font-semibold text-[#212121] font-Urbanist">{event.title}</h3>
                       <div className="flex items-center space-x-3">
                         <div className="flex space-x-2">
                           <button
@@ -334,24 +338,24 @@ function EventManagement() {
                     </div>
                     
                     {/* Location */}
-                    <div className="flex items-center text-gray-600 mb-1">
+                    <div className="flex items-center text-black font-WorkSansMedium mb-1">
                       <MapPin size={14} className="mr-2 text-gray-400" />
                       <span className="text-sm">{event.location}</span>
                     </div>
                     
                     {/* Date */}
-                    <div className="flex items-center text-gray-600 mb-2">
+                    <div className="flex items-center text-black font-WorkSansMedium mb-2">
                       <Calendar size={14} className="mr-2 text-gray-400" />
                       <span className="text-sm">{event.date}</span>
                     </div>
                     
                     {/* Organizer */}
-                    <div className="text-sm text-gray-600 mb-3">
+                    <div className="text-sm text-black font-WorkSansMedium mb-3">
                       <span>Created by {event.organizer} • {event.attendees} attending</span>
                     </div>
                     
                     {/* Description */}
-                    <p className="text-gray-700 text-sm leading-relaxed mb-4">{event.description}</p>
+                    <p className="text-black font-WorkSansMedium text-sm leading-relaxed mb-4">{event.description}</p>
 
                     {/* Status Tags */}
                     <div className="flex items-center space-x-2">
