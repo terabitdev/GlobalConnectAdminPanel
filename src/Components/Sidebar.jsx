@@ -26,7 +26,7 @@ const Sidebar = forwardRef(({ onItemClick }, ref) => {
     console.log("Logout clicked");
     setIsOpen(false);
     // Add logout logic here (clear tokens, etc.)
-    navigate("/login"); // Navigate to login page
+    navigate("/"); // Navigate to login page
   };
 
   const handleItemClick = (itemName, route) => {
@@ -149,7 +149,7 @@ const Sidebar = forwardRef(({ onItemClick }, ref) => {
         <div className="p-4 border-t border-gray-200">
           <button 
             onClick={handleLogout}
-            className="flex items-center space-x-3 px-3 py-2 text-white bg-blue-500 hover:bg-blue-600 rounded-lg transition-colors w-full"
+            className="flex items-center space-x-3 px-3 py-2 text-white bg-primaryBlue rounded-lg  w-full"
           >
             <img src="/assets/logout.svg" alt="logout" />
             <span className="font-BarlowMedium">Logout</span>

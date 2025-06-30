@@ -155,11 +155,11 @@ function TipsManagement() {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-4">
               <div className="flex items-center space-x-1">
-                <ThumbsUp size={14} className="text-gray-400" />
+                 <img src="/assets/like.svg" className="w-4 h-4" />
                 <span className="text-xs text-gray-600">{tip.likes}</span>
               </div>
               <div className="flex items-center space-x-1">
-                <ThumbsDown size={14} className="text-gray-400" />
+                 <img src="/assets/dislike.svg" className="w-4 h-4" />
                 <span className="text-xs text-gray-600">{tip.dislikes}</span>
               </div>
             </div>
@@ -326,9 +326,13 @@ function TipsManagement() {
                     </p>
 
                      {/* location */}
-                    <p className="text-black font-WorkSansRegular text-xs leading-relaxed mb-2">
+                    <div className="flex items-center space-x-2 my-1 ">
+                        <img src="/assets/location.svg" className="w-4 h-4" />
+                    <p className="text-black font-WorkSansRegular text-xs leading-relaxed ">
+                    
                       {tip.location}
                     </p>
+                    </div>
 
                     {/* Like/Dislike and Category */}
                     <div className="flex items-center justify-between font-WorkSansRegular">

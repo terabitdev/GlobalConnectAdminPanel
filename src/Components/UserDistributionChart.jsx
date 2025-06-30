@@ -29,7 +29,7 @@ function UserDistributionChart() {
       <div className="mb-6">
         <div className="flex items-center justify-between mb-4">
           <div className="flex flex-col  space-y-1">
-            <h3 className="text-2xl font-medium text-black">New Users</h3>
+            <h3 className="sm:text-2xl text-sm font-medium text-black">New Users</h3>
             <span className="text-base font-semibold text-black">70%</span>
           </div>
           <div className="flex space-x-2">

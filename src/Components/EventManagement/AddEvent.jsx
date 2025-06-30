@@ -124,8 +124,8 @@ function AddEvent() {
           </div>
 
           {/* Main Content Container */}
-          <div className="max-w-5xl mx-auto">
-            <div className="bg-white rounded-lg shadow-sm border p-6 lg:p-8">
+          <div className="max-w-5xl 2xl:max-w-[100rem] mx-auto">
+            <div className="bg-[#FAFAFB]">
               {/* Header */}
               <h2 className="text-xl lg:text-2xl font-bold text-black font-PlusJakartaSans mb-8 text-center lg:text-left">Add Event</h2>
               

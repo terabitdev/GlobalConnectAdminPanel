@@ -214,12 +214,12 @@ function UsersManagement() {
           >
             <Menu size={24} className="text-gray-700" />
           </button>
-          <h1 className="text-lg sm:text-xl font-semibold text-gray-800 lg:hidden">Users Management</h1>
+          <h1 className="text-lg sm:text-xl font-semibold text-black font-PlusJakartaSans  lg:hidden">Users Management</h1>
         </div>
         
         <div className="p-4 sm:p-6 lg:p-8 overflow-y-auto h-full scrollbar-hide">
           {/* Header - hidden on mobile since it's in the top bar */}
-          <h1 className="text-xl sm:text-2xl font-bold text-black mb-4 lg:mb-6 hidden lg:block">Users Management</h1>
+          <h1 className="text-xl sm:text-2xl font-bold text-black font-PlusJakartaSans  mb-4 lg:mb-6 hidden lg:block">Users Management</h1>
 
           {/* Search and Filter Bar */}
           <div className="flex flex-col space-y-3 mb-6">
@@ -227,7 +227,7 @@ function UsersManagement() {
             <div className="relative flex-1">
               <img
                 src="/assets/search.svg"
-                className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400"
+                className="absolute left-3 top-1/2 transform -translate-y-1/2 "
                 alt="Search"
               />
               <input
@@ -235,7 +235,7 @@ function UsersManagement() {
                 placeholder="Search users by name or email"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-10 pr-4 py-2.5 sm:py-2 border border-gray-300 bg-[#FAFAFB] rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
+                className="w-full pl-10 pr-4 py-2.5 sm:py-2 border border-gray-300 bg-[#FAFAFB] placeholder:text-grayModern rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm sm:text-base"
               />
             </div>
 
@@ -244,7 +244,7 @@ function UsersManagement() {
               <select
                 value={selectedCountry}
                 onChange={(e) => setSelectedCountry(e.target.value)}
-                className="appearance-none bg-[#FAFAFB] border placeholder:font-PlusJakarta border-gray-300 rounded-lg px-4 py-2.5 sm:py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[140px] w-full sm:w-auto text-sm sm:text-base"
+                className="appearance-none bg-[#FAFAFB] border placeholder:font-PlusJakarta border-gray-300 rounded-lg px-4 py-2.5 sm:py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[140px] w-full sm:w-auto text-sm sm:text-base text-grayModern"
               >
                 {countries.map((country) => (
                   <option key={country} value={country}>

@@ -6,7 +6,6 @@ import { FaStar } from "react-icons/fa6";
 import Sidebar from "../Components/Sidebar";
 import { FaCaretDown } from "react-icons/fa";
 import { useNavigate } from "react-router";
-
 function EventManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEventType, setSelectedEventType] = useState("All Events");
@@ -339,19 +338,22 @@ function EventManagement() {
                     
                     {/* Location */}
                     <div className="flex items-center text-black font-WorkSansMedium mb-1">
-                      <MapPin size={14} className="mr-2 text-gray-400" />
+                      <img src="/assets/location.svg" className="w-4 h-4" />
                       <span className="text-sm">{event.location}</span>
                     </div>
                     
                     {/* Date */}
                     <div className="flex items-center text-black font-WorkSansMedium mb-2">
-                      <Calendar size={14} className="mr-2 text-gray-400" />
+                      <img src="/assets/event.svg" className="w-4 h-4 " />
                       <span className="text-sm">{event.date}</span>
                     </div>
                     
                     {/* Organizer */}
-                    <div className="text-sm text-black font-WorkSansMedium mb-3">
-                      <span>Created by {event.organizer} • {event.attendees} attending</span>
+                    <div className="flex items-center space-x-1 text-sm text-black font-WorkSansMedium mb-3">
+                      <img src="/assets/admin.svg" className="w-4 h-4" />
+                      <span>Created by {event.organizer}</span>
+                      <img src="/assets/users.svg" className="w-5 h-5" />
+                      <span>• {event.attendees} attending</span>
                     </div>
                     
                     {/* Description */}
@@ -370,10 +372,12 @@ function EventManagement() {
 
 
                       {event.price.map((prices, index) => (
+                        
                         <span 
                           key={index}
-                          className="px-3 py-1 bg-white border border-primaryBlue text-primaryBlue text-xs rounded"
+                          className="px-2 py-1 flex gap-1 bg-white border border-primaryBlue text-primaryBlue text-xs rounded"
                         >
+                            <img src="/assets/ticket.svg" className="w-4 h-4" />
                           {prices}
                         </span>
                       ))}

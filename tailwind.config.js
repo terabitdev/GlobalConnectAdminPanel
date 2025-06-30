@@ -44,6 +44,9 @@ export default {
         'custom': '2px 2px 10px 0px #00000040',
       },
     },
+      backgroundImage: {
+        'custom-blue-gradient': 'linear-gradient(111.59deg, #97E0FF -55.3%, #1075FF 97.44%)',
+      },
   },
   plugins: [
      function ({ addUtilities }) {

@@ -4,6 +4,7 @@ import { FaStar } from "react-icons/fa6";
 import Sidebar from "../Components/Sidebar";
 import { FaCaretDown } from "react-icons/fa";
 import { useNavigate } from "react-router";
+import { FaHandshakeSimple } from "react-icons/fa6";
 
 function RestaurantManagement() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -105,33 +106,7 @@ function RestaurantManagement() {
       restaurant.cuisine.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  // Render star rating
-  const renderStars = (rating) => {
-    const stars = [];
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 !== 0;
 
-    for (let i = 0; i < fullStars; i++) {
-      stars.push(
-        <FaStar key={i} size={12} className="text-yellow-400" />
-      );
-    }
-
-    if (hasHalfStar) {
-      stars.push(
-        <FaStar key="half" size={12} className="text-yellow-400 opacity-50" />
-      );
-    }
-
-    const remainingStars = 5 - Math.ceil(rating);
-    for (let i = 0; i < remainingStars; i++) {
-      stars.push(
-        <FaStar key={`empty-${i}`} size={12} className="text-gray-300" />
-      );
-    }
-
-    return stars;
-  };
 
   // Mobile Restaurant Card Component
   const RestaurantCard = ({ restaurant }) => (
@@ -161,7 +136,7 @@ function RestaurantManagement() {
               <span className="text-sm font-medium">{restaurant.cuisine}</span>
             </div>
             <div className="flex items-center space-x-1">
-              {renderStars(restaurant.rating)}
+                <FaStar size={12} className="text-yellow-500" />
               <span className="text-xs ml-1">({restaurant.reviewCount} reviews)</span>
             </div>
           </div>
@@ -364,20 +339,21 @@ function RestaurantManagement() {
                     </div>
                     
                     {/* Address */}
-                    <div className="flex items-center text-black font-WorkSansMedium mb-1">
-                      <MapPin size={14} className="mr-2 text-gray-400" />
+                    <div className="flex items-center space-x-2 text-black font-WorkSansMedium mb-1">
+                      <img src="/assets/location.svg" className="w-4 h-4" />
                       <span className="text-sm">{restaurant.address}</span>
+                      <span className="text-sm font-medium"> • {restaurant.cuisine}</span>
                     </div>
                     
                     {/* Cuisine Type */}
                     <div className="flex items-center text-black font-WorkSansMedium mb-2">
-                      <span className="text-sm font-medium">{restaurant.cuisine}</span>
+                      
                     </div>
 
                     {/* Rating */}
                     <div className="flex items-center mb-3">
                       <div className="flex space-x-1 mr-2">
-                        {renderStars(restaurant.rating)}
+                        <FaStar size={14} className="text-yellow-500" />
                       </div>
                       <span className="text-sm text-black font-WorkSansMedium">
                         {restaurant.rating} • {restaurant.reviewCount} reviews • Added by Admin
@@ -397,7 +373,8 @@ function RestaurantManagement() {
                           {tag}
                         </span>
                       ))}
-                      <span className="px-3 py-1 bg-white border border-[#4BADE6] text-[#4BADE6] text-xs rounded">
+                      <span className="flex items-center gap-1 px-2 py-1 bg-white border border-[#4BADE6] text-[#4BADE6] text-xs rounded">
+                        <FaHandshakeSimple size={13}  className="text-yellow-400" />
                         {restaurant.with}
                       </span>
                     </div>
