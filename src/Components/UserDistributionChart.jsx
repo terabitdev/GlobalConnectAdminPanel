@@ -1,4 +1,3 @@
-
 import React, { useState } from "react";
 import { MoreHorizontal } from "lucide-react";
 
@@ -76,12 +75,22 @@ function UserDistributionChart() {
           <div className="ml-8 h-full relative">
             {/* Chart SVG */}
             <svg className="w-full h-full" viewBox="0 0 1200 200" preserveAspectRatio="none">
-              {/* Gradient Definition */}
               <defs>
+                {/* Chart area gradient */}
                 <linearGradient id="chartGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stopColor="#4BADE6" stopOpacity="0.4"/>
+                  <stop offset="0%" stopColor="#4BADE6" stopOpacity="0.8"/>
                   <stop offset="100%" stopColor="#4BADE6" stopOpacity="0.1"/>
                 </linearGradient>
+                {/* Vertical line gradient */}
+                <linearGradient id="lineGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#4BADE6" stopOpacity="1"/>
+                  <stop offset="80%" stopColor="#4BADE6" stopOpacity="1"/>
+                  <stop offset="100%" stopColor="#4BADE6" stopOpacity="0"/>
+                </linearGradient>
+                {/* Shadow/fade for the bottom */}
+                <filter id="blur" x="-20%" y="0" width="140%" height="200%">
+                  <feGaussianBlur stdDeviation="8" />
+                </filter>
               </defs>
               
               {/* Chart Area Fill */}
@@ -98,10 +107,18 @@ function UserDistributionChart() {
                 fill="none"
               />
               
-              {/* Prominent Data Point in March area with vertical line */}
-              <circle cx="300" cy="120" r="7" fill="#4BADE6"  stroke="white" strokeWidth="2" />
-              {/* Vertical line from March point */}
-              <line x1="300" y1="120" x2="300" y2="200"  stroke="#4BADE6" strokeWidth="20" opacity="0.8" />
+              {/* Vertical rounded rectangle with gradient */}
+              <rect
+                x="292" y="120"
+                width="16" height="80"
+                rx="8"
+                fill="url(#lineGradient)"
+                filter="url(#blur)"
+              />
+              
+              {/* Prominent Data Point (Donut) */}             
+              <circle cx="300" cy="120" r="10" fill="#4BADE6" />
+              <circle cx="300" cy="120" r="6.5" fill="#fff" />
             </svg>
             
             {/* X-axis Labels */}
