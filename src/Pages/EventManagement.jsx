@@ -329,7 +329,7 @@ function EventManagement() {
                         </div>
                         {event.featured && (
                           <span className="px-2 py-[5px] bg-[#FDE0E0] text-black text-sm rounded flex items-center">
-                            <FaStar size={10} className="mr-1" />
+                            <FaStar size={15} className="mr-1" />
                             Featured
                           </span>
                         )}

@@ -10,6 +10,7 @@ function UserDistributionChart() {
     console.log("More options clicked");
     // Add more options logic here
   };
+  
 
   return (
     <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
