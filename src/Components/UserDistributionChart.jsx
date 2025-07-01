@@ -99,9 +99,9 @@ function UserDistributionChart() {
               />
               
               {/* Prominent Data Point in March area with vertical line */}
-              <circle cx="300" cy="120" r="5" fill="#4BADE6" stroke="white" strokeWidth="3" />
+              <circle cx="300" cy="120" r="7" fill="#4BADE6"  stroke="white" strokeWidth="2" />
               {/* Vertical line from March point */}
-              <line x1="300" y1="120" x2="300" y2="200" stroke="#4BADE6" strokeWidth="20" opacity="0.8" />
+              <line x1="300" y1="120" x2="300" y2="200"  stroke="#4BADE6" strokeWidth="20" opacity="0.8" />
             </svg>
             
             {/* X-axis Labels */}
