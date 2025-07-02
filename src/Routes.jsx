@@ -9,18 +9,83 @@ import AddEvent from "./Components/EventManagement/AddEvent";
 import RestaurantManagement from "./Pages/RestaurantManagement";
 import AddRestaurant from "./Components/RestaurantManagement/AddRestaurant";
 import TipsManagement from "./Pages/TipsManagement";
+import PublicRoute from "./components/PublicRoute";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 const ProjectRoutes = () => {
     let element = useRoutes([
-        { path: "/", element: <LoginPage /> },
-        { path: "/dashboard", element: <Dashboard /> }, 
-        { path: "/users-management", element: <UsersManagement /> },
-        { path: "/users-management/user-details", element: <UserDetails /> },
-        { path: "/events", element: <EventManagement /> },
-        { path: "/events/add-event", element: <AddEvent /> },
-        { path: "/restaurants", element: <RestaurantManagement /> },
-        { path: "/restaurants/add-restaurant", element: <AddRestaurant /> },
-        { path: "/tips", element: <TipsManagement /> },
+        { 
+            path: "/", 
+            element: (
+                <PublicRoute>
+                    <LoginPage />
+                </PublicRoute>
+            ) 
+        },
+        { 
+            path: "/dashboard", 
+            element: (
+                <ProtectedRoute>
+                    <Dashboard />
+                </ProtectedRoute>
+            ) 
+        }, 
+        { 
+            path: "/users-management", 
+            element: (
+                <ProtectedRoute>
+                    <UsersManagement />
+                </ProtectedRoute>
+            ) 
+        },
+        { 
+            path: "/users-management/user-details", 
+            element: (
+                <ProtectedRoute>
+                    <UserDetails />
+                </ProtectedRoute>
+            ) 
+        },
+        { 
+            path: "/events", 
+            element: (
+                <ProtectedRoute>
+                    <EventManagement />
+                </ProtectedRoute>
+            ) 
+        },
+        { 
+            path: "/events/add-event", 
+            element: (
+                <ProtectedRoute>
+                    <AddEvent />
+                </ProtectedRoute>
+            ) 
+        },
+        { 
+            path: "/restaurants", 
+            element: (
+                <ProtectedRoute>
+                    <RestaurantManagement />
+                </ProtectedRoute>
+            ) 
+        },
+        { 
+            path: "/restaurants/add-restaurant", 
+            element: (
+                <ProtectedRoute>
+                    <AddRestaurant />
+                </ProtectedRoute>
+            ) 
+        },
+        { 
+            path: "/tips", 
+            element: (
+                <ProtectedRoute>
+                    <TipsManagement />
+                </ProtectedRoute>
+            ) 
+        },
     ]);
     return element;
   };

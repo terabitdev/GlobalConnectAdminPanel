@@ -3,6 +3,8 @@
 import React, { useEffect, forwardRef, useImperativeHandle, useState } from "react";
 import { useNavigate, useLocation, useParams } from "react-router-dom";
 import { LogOut, X } from "lucide-react";
+import { signOut } from "firebase/auth";
+import { auth } from "../firebase";
 
 const Sidebar = forwardRef(({ onItemClick }, ref) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -62,11 +64,20 @@ const Sidebar = forwardRef(({ onItemClick }, ref) => {
     };
   };
 
-  const handleLogout = () => {
-    console.log("Logout clicked");
-    setIsOpen(false);
-    // Add logout logic here (clear tokens, etc.)
-    navigate("/"); // Navigate to login page
+  const handleLogout = async () => {
+    try {
+      console.log("Logout clicked");
+      setIsOpen(false);
+      
+      // Sign out from Firebase
+      await signOut(auth);
+      console.log("User signed out successfully");
+      
+      // Navigate to login page (this will be handled by AuthContext automatically)
+      navigate("/");
+    } catch (error) {
+      console.error("Error signing out:", error);
+    }
   };
 
   const handleItemClick = (itemName, route) => {

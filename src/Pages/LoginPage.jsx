@@ -308,9 +308,11 @@ import React, { useState } from "react";
 import { Eye, EyeOff, Globe } from "lucide-react";
 import { signInWithEmailAndPassword, sendPasswordResetEmail } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
+import { useNavigate } from "react-router-dom";
 import { auth, db } from "../firebase"; // Adjust path as needed
 
 function LoginPage() {
+  const navigate = useNavigate();
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -361,7 +363,7 @@ function LoginPage() {
           });
           
           // Redirect to dashboard
-          window.location.href = "/dashboard";
+          navigate("/dashboard");
         } else {
           setError("Access denied. Admin privileges required.");
           await auth.signOut(); // Sign out non-admin user
