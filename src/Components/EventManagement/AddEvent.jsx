@@ -1,12 +1,27 @@
-
-
 import React, { useState, useRef, useEffect } from "react";
-import { Camera, Menu, ArrowLeft, Clock, Calendar, Upload, X, CheckCircle, AlertCircle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import {
+  Camera,
+  Menu,
+  ArrowLeft,
+  Clock,
+  Calendar,
+  Upload,
+  X,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
+import { useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../Sidebar";
 import { FaCaretDown } from "react-icons/fa";
 import { db, storage } from "../../firebase";
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import {
+  collection,
+  addDoc,
+  serverTimestamp,
+  doc,
+  getDoc,
+  updateDoc,
+} from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 import { useAuth } from "../../contexts/AuthContext";
 
@@ -22,21 +37,38 @@ function AddEvent() {
   const dateInputRef = useRef();
   const timeInputRef = useRef();
   const navigate = useNavigate();
+  const { eventId } = useParams();
+  const isEditMode = Boolean(eventId);
 
   const [formData, setFormData] = useState({
-    eventName: '',
-    city: '',
-    date: '',
-    time: '',
-    eventType: '',
+    eventName: "",
+    city: "",
+    date: "",
+    time: "",
+    eventType: "",
     featuredEvent: false,
-    venue: '',
-    description: '',
-    ticketLink: ''
+    venue: "",
+    description: "",
+    ticketLink: "",
   });
 
-  const cities = ["Select City", "Barcelona", "Madrid", "Valencia", "Seville", "Bilbao"];
-  const eventTypes = ["Select Event Type", "Sports", "Music", "Food", "Art", "Technology", "Entertainment"];
+  const cities = [
+    "Select City",
+    "Barcelona",
+    "Madrid",
+    "Valencia",
+    "Seville",
+    "Bilbao",
+  ];
+  const eventTypes = [
+    "Select Event Type",
+    "Sports",
+    "Music",
+    "Food",
+    "Art",
+    "Technology",
+    "Entertainment",
+  ];
 
   // Auto-hide success alert after 4 seconds
   useEffect(() => {
@@ -44,16 +76,56 @@ function AddEvent() {
       const timer = setTimeout(() => {
         setShowSuccessAlert(false);
         // Navigate to events page after showing success message
-        navigate('/events');
+        navigate("/events");
       }, 4000);
       return () => clearTimeout(timer);
     }
   }, [showSuccessAlert, navigate]);
 
+  useEffect(() => {
+    if (isEditMode) {
+      const fetchEvent = async () => {
+        try {
+          const docRef = doc(db, "events", eventId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setFormData({
+              eventName: data.eventName || "",
+              city: data.city || "",
+              date: data.date || "",
+              time: data.time || "",
+              eventType: data.eventType || "",
+              featuredEvent: data.featuredEvent || false,
+              venue: data.venue || "",
+              description: data.description || "",
+              ticketLink: data.ticketLink || "",
+            });
+            if (data.images && data.images.length > 0) {
+              setSelectedImages(
+                data.images.map((url, idx) => ({
+                  id: idx,
+                  url,
+                  file: null,
+                }))
+              );
+            } else {
+              setSelectedImages([]);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch event for editing:", error);
+        }
+      };
+      fetchEvent();
+    }
+    // eslint-disable-next-line
+  }, [eventId]);
+
   const handleInputChange = (field, value) => {
-    setFormData(prev => ({
+    setFormData((prev) => ({
       ...prev,
-      [field]: value
+      [field]: value,
     }));
   };
 
@@ -67,32 +139,35 @@ function AddEvent() {
   };
 
   const handleBackToEvents = () => {
-    navigate('/events');
+    navigate("/events");
   };
 
   const handleImageUpload = (event) => {
     const files = Array.from(event.target.files);
-    const newImages = files.map(file => ({
+    const newImages = files.map((file) => ({
       id: Date.now() + Math.random(),
       url: URL.createObjectURL(file),
-      file: file
+      file: file,
     }));
-    setSelectedImages(prev => [...prev, ...newImages]);
+    setSelectedImages((prev) => [...prev, ...newImages]);
   };
 
   const removeImage = (imageId) => {
-    setSelectedImages(prev => prev.filter(img => img.id !== imageId));
+    setSelectedImages((prev) => prev.filter((img) => img.id !== imageId));
   };
 
   // Function to upload images to Firebase Storage
   const uploadImages = async (images) => {
     const uploadPromises = images.map(async (image, index) => {
-      const imageRef = ref(storage, `events/${Date.now()}_${index}_${image.file.name}`);
+      const imageRef = ref(
+        storage,
+        `events/${Date.now()}_${index}_${image.file.name}`
+      );
       const snapshot = await uploadBytes(imageRef, image.file);
       const downloadURL = await getDownloadURL(snapshot.ref);
       return downloadURL;
     });
-    
+
     return Promise.all(uploadPromises);
   };
 
@@ -105,11 +180,11 @@ function AddEvent() {
         createdBy: user.uid,
         createdByEmail: user.email,
         createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
+        updatedAt: serverTimestamp(),
       };
-      
+
       console.log("Attempting to save event:", eventDocument);
-      
+
       const docRef = await addDoc(collection(db, "events"), eventDocument);
       console.log("Event saved with ID: ", docRef.id);
       return docRef.id;
@@ -125,56 +200,72 @@ function AddEvent() {
     e.preventDefault();
     setLoading(true);
     setError("");
-
     try {
-      // Debug authentication state
-      console.log("Authentication state:", { user: !!user, isAdmin, userUid: user?.uid });
-      
-      // Check if user is authenticated
-      if (!user || !isAdmin) {
-        setError("You must be logged in as an admin to create events");
-        setLoading(false);
-        return;
-      }
-
-      // Validate required fields
-      if (!formData.eventName || !formData.date || !formData.time) {
-        setError("Please fill in all required fields");
-        setLoading(false);
-        return;
-      }
-
-      // Upload images first
       let imageUrls = [];
-      if (selectedImages.length > 0) {
-        imageUrls = await uploadImages(selectedImages);
+      const newImages = selectedImages.filter((img) => img.file);
+      if (newImages.length > 0) {
+        imageUrls = await uploadImages(newImages);
       }
+      if (isEditMode) {
+        // Merge old and new images
+        const allImages = [
+          ...selectedImages.filter((img) => !img.file).map((img) => img.url),
+          ...imageUrls,
+        ];
+        await updateDoc(doc(db, "events", eventId), {
+          ...formData,
+          images: allImages,
+          updatedAt: serverTimestamp(),
+        });
+        setSuccessMessage("Event updated successfully!");
+      } else {
+        // Debug authentication state
+        console.log("Authentication state:", {
+          user: !!user,
+          isAdmin,
+          userUid: user?.uid,
+        });
 
-      // Save event to Firestore
-      const eventId = await saveEventToFirestore(formData, imageUrls);
+        // Check if user is authenticated
+        if (!user || !isAdmin) {
+          setError("You must be logged in as an admin to create events");
+          setLoading(false);
+          return;
+        }
 
-      // Success - show custom success alert
-      setSuccessMessage(`Event "${formData.eventName}" created successfully!`);
+        // Validate required fields
+        if (!formData.eventName || !formData.date || !formData.time) {
+          setError("Please fill in all required fields");
+          setLoading(false);
+          return;
+        }
+
+        // Save event to Firestore
+        const eventId = await saveEventToFirestore(formData, imageUrls);
+        setSuccessMessage(
+          `Event \"${formData.eventName}\" created successfully!`
+        );
+      }
       setShowSuccessAlert(true);
-      setError(""); // Clear any previous errors
-      
-      // Reset form data
+      setError("");
       setFormData({
-        eventName: '',
-        city: '',
-        date: '',
-        time: '',
-        eventType: '',
+        eventName: "",
+        city: "",
+        date: "",
+        time: "",
+        eventType: "",
         featuredEvent: false,
-        venue: '',
-        description: '',
-        ticketLink: ''
+        venue: "",
+        description: "",
+        ticketLink: "",
       });
       setSelectedImages([]);
-      
     } catch (error) {
-      console.error("Error creating event:", error);
-      setError("Failed to create event. Please try again.");
+      setError(
+        isEditMode
+          ? "Failed to update event. Please try again."
+          : "Failed to create event. Please try again."
+      );
     } finally {
       setLoading(false);
     }
@@ -197,13 +288,13 @@ function AddEvent() {
       console.log("Testing Firestore permissions...");
       console.log("Current user:", user);
       console.log("Is admin:", isAdmin);
-      
+
       const testDoc = {
         testField: "test value",
         createdBy: user?.uid || "no-user",
-        createdAt: serverTimestamp()
+        createdAt: serverTimestamp(),
       };
-      
+
       const docRef = await addDoc(collection(db, "events"), testDoc);
       console.log("✅ Firestore write successful! Document ID:", docRef.id);
       return true;
@@ -214,7 +305,7 @@ function AddEvent() {
   };
 
   // Make test function available in window for console testing
-  if (typeof window !== 'undefined') {
+  if (typeof window !== "undefined") {
     window.testFirestorePermissions = testFirestorePermissions;
   }
 
@@ -224,7 +315,9 @@ function AddEvent() {
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
         <div className="flex flex-col items-center">
           <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primaryBlue"></div>
-          <p className="mt-2 text-sm text-gray-600">Checking authentication...</p>
+          <p className="mt-2 text-sm text-gray-600">
+            Checking authentication...
+          </p>
         </div>
       </div>
     );
@@ -233,10 +326,10 @@ function AddEvent() {
   return (
     <div className="flex h-screen bg-gray-50 font-PlusJakarta">
       {/* Sidebar Component */}
-      <Sidebar 
+      <Sidebar
         ref={sidebarRef}
-        activeItem={activeMenuItem} 
-        onItemClick={handleMenuItemClick} 
+        activeItem={activeMenuItem}
+        onItemClick={handleMenuItemClick}
       />
 
       {/* Main Content */}
@@ -256,10 +349,12 @@ function AddEvent() {
             >
               <ArrowLeft size={20} className="text-gray-700" />
             </button>
-            <h1 className="text-lg sm:text-xl font-semibold text-gray-800 lg:hidden">Add Event</h1>
+            <h1 className="text-lg sm:text-xl font-semibold text-gray-800 lg:hidden">
+              Add Event
+            </h1>
           </div>
         </div>
-        
+
         <div className="p-4 sm:p-6 lg:p-8 overflow-y-auto h-full scrollbar-hide">
           {/* Header with Back Button - hidden on mobile since it's in the top bar */}
           <div className="hidden lg:flex items-center mb-6">
@@ -276,8 +371,10 @@ function AddEvent() {
           <div className="max-w-5xl 2xl:max-w-[100rem] mx-auto">
             <div className="bg-[#FAFAFB]">
               {/* Header */}
-              <h2 className="text-xl lg:text-2xl font-bold text-black font-PlusJakartaSans mb-8 text-center lg:text-left">Add Event</h2>
-              
+              <h2 className="text-xl lg:text-2xl font-bold text-black font-PlusJakartaSans mb-8 text-center lg:text-left">
+                Add Event
+              </h2>
+
               <form onSubmit={handleSubmit} className="space-y-6">
                 {/* Error Message */}
                 {error && (
@@ -294,15 +391,21 @@ function AddEvent() {
                       <div className="flex items-center">
                         <CheckCircle className="h-6 w-6 text-green-400 mr-3 flex-shrink-0 animate-bounce" />
                         <div className="flex-1">
-                          <h3 className="text-sm font-semibold text-green-800">Success!</h3>
-                          <p className="mt-1 text-sm text-green-700 font-medium">{successMessage}</p>
-                          <p className="mt-1 text-xs text-green-600">Redirecting to events page...</p>
+                          <h3 className="text-sm font-semibold text-green-800">
+                            Success!
+                          </h3>
+                          <p className="mt-1 text-sm text-green-700 font-medium">
+                            {successMessage}
+                          </p>
+                          <p className="mt-1 text-xs text-green-600">
+                            Redirecting to events page...
+                          </p>
                         </div>
                         <button
                           type="button"
                           onClick={() => {
                             setShowSuccessAlert(false);
-                            navigate('/events');
+                            navigate("/events");
                           }}
                           className="ml-4 text-green-400 hover:text-green-600 transition-colors p-1 rounded-full hover:bg-green-100"
                         >
@@ -320,8 +423,12 @@ function AddEvent() {
                       <div className="flex items-center">
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primaryBlue mr-3"></div>
                         <div className="flex-1">
-                          <h3 className="text-sm font-semibold text-blue-800">Creating Event...</h3>
-                          <p className="mt-1 text-sm text-blue-700">Please wait while we save your event</p>
+                          <h3 className="text-sm font-semibold text-blue-800">
+                            Creating Event...
+                          </h3>
+                          <p className="mt-1 text-sm text-blue-700">
+                            Please wait while we save your event
+                          </p>
                         </div>
                       </div>
                     </div>
@@ -341,11 +448,13 @@ function AddEvent() {
                       />
                       <div className="w-24 h-24 mx-auto bg-[#FAFAFB] rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-primaryBlue ">
                         <Camera size={32} className="text-primaryBlue mb-2" />
-                        <span className="text-xs text-primaryBlue">Tap to Add Photo</span>
+                        <span className="text-xs text-primaryBlue">
+                          Tap to Add Photo
+                        </span>
                       </div>
                     </label>
                   </div>
-                  
+
                   {/* Image Thumbnails */}
                   {selectedImages.length > 0 && (
                     <div className="flex justify-center space-x-2 mb-4">
@@ -378,7 +487,9 @@ function AddEvent() {
                     <input
                       type="text"
                       value={formData.eventName}
-                      onChange={(e) => handleInputChange('eventName', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("eventName", e.target.value)
+                      }
                       placeholder="Enter event name"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-black placeholder:text-grayModern"
                     />
@@ -392,7 +503,9 @@ function AddEvent() {
                     <div className="relative">
                       <select
                         value={formData.city}
-                        onChange={(e) => handleInputChange('city', e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("city", e.target.value)
+                        }
                         className="appearance-none w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
                       >
                         {cities.map((city) => (
@@ -421,11 +534,13 @@ function AddEvent() {
                             ref={dateInputRef}
                             type="date"
                             value={formData.date}
-                            onChange={(e) => handleInputChange('date', e.target.value)}
+                            onChange={(e) =>
+                              handleInputChange("date", e.target.value)
+                            }
                             className="date-input w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
                           />
-                          <Calendar 
-                            size={18} 
+                          <Calendar
+                            size={18}
                             className="absolute right-4 top-1/2 transform -translate-y-1/2 text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
                             onClick={handleDateIconClick}
                           />
@@ -442,12 +557,14 @@ function AddEvent() {
                             ref={timeInputRef}
                             type="time"
                             value={formData.time}
-                            onChange={(e) => handleInputChange('time', e.target.value)}
+                            onChange={(e) =>
+                              handleInputChange("time", e.target.value)
+                            }
                             placeholder="Enter event time"
                             className="time-input w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
                           />
-                          <Clock 
-                            size={18} 
+                          <Clock
+                            size={18}
                             className="absolute right-4 top-1/2 transform -translate-y-1/2 text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
                             onClick={handleTimeIconClick}
                           />
@@ -464,7 +581,9 @@ function AddEvent() {
                     <div className="relative">
                       <select
                         value={formData.eventType}
-                        onChange={(e) => handleInputChange('eventType', e.target.value)}
+                        onChange={(e) =>
+                          handleInputChange("eventType", e.target.value)
+                        }
                         className="appearance-none w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
                       >
                         {eventTypes.map((type) => (
@@ -492,7 +611,9 @@ function AddEvent() {
                           name="featuredEvent"
                           value="true"
                           checked={formData.featuredEvent === true}
-                          onChange={(e) => handleInputChange('featuredEvent', true)}
+                          onChange={(e) =>
+                            handleInputChange("featuredEvent", true)
+                          }
                           className="mr-2 text-blue-500 focus:ring-blue-500"
                         />
                         <span className="text-sm text-thirdBlack">Yes</span>
@@ -503,7 +624,9 @@ function AddEvent() {
                           name="featuredEvent"
                           value="false"
                           checked={formData.featuredEvent === false}
-                          onChange={(e) => handleInputChange('featuredEvent', false)}
+                          onChange={(e) =>
+                            handleInputChange("featuredEvent", false)
+                          }
                           className="mr-2 text-blue-500 focus:ring-blue-500"
                         />
                         <span className="text-sm text-thirdBlack">No</span>
@@ -519,7 +642,9 @@ function AddEvent() {
                     <input
                       type="text"
                       value={formData.venue}
-                      onChange={(e) => handleInputChange('venue', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("venue", e.target.value)
+                      }
                       placeholder="Enter venue location"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans"
                     />
@@ -532,7 +657,9 @@ function AddEvent() {
                     </label>
                     <textarea
                       value={formData.description}
-                      onChange={(e) => handleInputChange('description', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("description", e.target.value)
+                      }
                       placeholder="Describe about the event"
                       rows={4}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] resize-none font-PlusJakartaSans"
@@ -547,7 +674,9 @@ function AddEvent() {
                     <input
                       type="url"
                       value={formData.ticketLink}
-                      onChange={(e) => handleInputChange('ticketLink', e.target.value)}
+                      onChange={(e) =>
+                        handleInputChange("ticketLink", e.target.value)
+                      }
                       placeholder="https://example.com/tickets"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-Urbanist"
                     />
@@ -560,21 +689,27 @@ function AddEvent() {
                     type="submit"
                     disabled={loading}
                     className={`flex-1 py-3 px-6 rounded-lg font-medium ${
-                      loading 
-                        ? 'bg-gray-400 text-white cursor-not-allowed' 
-                        : 'bg-primaryBlue text-white hover:bg-blue-700'
+                      loading
+                        ? "bg-gray-400 text-white cursor-not-allowed"
+                        : "bg-primaryBlue text-white hover:bg-blue-700"
                     }`}
                   >
-                    {loading ? 'Creating Event...' : 'Create Event'}
+                    {loading
+                      ? isEditMode
+                        ? "Updating..."
+                        : "Creating..."
+                      : isEditMode
+                      ? "Update Event"
+                      : "Create Event"}
                   </button>
                   <button
                     type="button"
                     onClick={handleBackToEvents}
                     disabled={loading}
                     className={`flex-1 border border-gray-300 py-3 px-6 rounded-lg font-medium ${
-                      loading 
-                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
-                        : 'bg-white text-primaryBlue hover:bg-gray-50'
+                      loading
+                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                        : "bg-white text-primaryBlue hover:bg-gray-50"
                     }`}
                   >
                     Cancel
@@ -584,9 +719,7 @@ function AddEvent() {
             </div>
           </div>
         </div>
-      </div>   
-
-
+      </div>
     </div>
   );
 }

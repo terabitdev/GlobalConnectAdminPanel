@@ -11,6 +11,8 @@ import AddRestaurant from "./Components/RestaurantManagement/AddRestaurant";
 import TipsManagement from "./Pages/TipsManagement";
 import PublicRoute from "./components/PublicRoute";
 import ProtectedRoute from "./components/ProtectedRoute";
+import { useParams } from "react-router-dom";
+import { doc, getDoc, updateDoc } from "firebase/firestore";
 
 const ProjectRoutes = () => {
     let element = useRoutes([
@@ -56,6 +58,14 @@ const ProjectRoutes = () => {
         },
         { 
             path: "/events/add-event", 
+            element: (
+                <ProtectedRoute>
+                    <AddEvent />
+                </ProtectedRoute>
+            ) 
+        },
+        { 
+            path: "/events/edit/:eventId", 
             element: (
                 <ProtectedRoute>
                     <AddEvent />

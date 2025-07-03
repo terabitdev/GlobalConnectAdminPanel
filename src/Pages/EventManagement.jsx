@@ -3,9 +3,9 @@ import { Search, ChevronDown, Plus, Menu, Edit, Eye, MapPin, Calendar, Users, St
 import { FaStar } from "react-icons/fa6";
 import Sidebar from "../Components/Sidebar";
 import { FaCaretDown } from "react-icons/fa";
-import { useNavigate } from "react-router";
+import { useNavigate, useParams } from "react-router";
 import { db } from "../firebase";
-import { collection, getDocs, query, orderBy, deleteDoc, doc } from "firebase/firestore";
+import { collection, getDocs, query, orderBy, deleteDoc, doc, getDoc, updateDoc, serverTimestamp } from "firebase/firestore";
 import { useAuth } from "../contexts/AuthContext";
 
 function EventManagement() {
@@ -24,6 +24,8 @@ function EventManagement() {
   const [eventToDelete, setEventToDelete] = useState(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
+  const { eventId } = useParams();
+  const isEditMode = Boolean(eventId);
 
   // Fetch events from Firebase
   const fetchEvents = async () => {
@@ -82,7 +84,6 @@ function EventManagement() {
           featured: data.featuredEvent === true,
           type: data.eventType || "General",
           tags: ["Active"],
-          price: ["$20"], // Default price for now
           image: data.images && data.images.length > 0 ? data.images[0] : "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=200&h=200&fit=crop", // First image from array with fallback
           ticketLink: data.ticketLink || "",
           createdAt: data.createdAt,
@@ -105,6 +106,24 @@ function EventManagement() {
     fetchEvents();
   }, []);
 
+  // Fetch event data if editing
+  useEffect(() => {
+    if (isEditMode) {
+      const fetchEvent = async () => {
+        const docRef = doc(db, "events", eventId);
+        const docSnap = await getDoc(docRef);
+        if (docSnap.exists()) {
+          setFormData({
+            ...docSnap.data(),
+            // If you need to convert any fields, do it here
+          });
+          // If you have images, setSelectedImages accordingly
+        }
+      };
+      fetchEvent();
+    }
+  }, [eventId]);
+
   const eventTypes = ["All Events", "Sports", "Music", "Food", "Art", "Technology"];
   const statusTypes = ["All Types", "Live", "Upcoming", "Completed"];
   const locationTypes = ["All Status", "Barcelona", "Madrid", "Valencia"];
@@ -122,8 +141,7 @@ function EventManagement() {
   };
 
   const handleEditEvent = (eventId) => {
-    console.log(`Edit event ${eventId}`);
-    // Add edit logic here
+    navigate(`/events/edit/${eventId}`);
   };
 
   const handleDeleteEvent = (eventId) => {
@@ -503,17 +521,25 @@ function EventManagement() {
                         </span>
                       ))}
 
-
-                      {event.price.map((prices, index) => (
-                        
-                        <span 
-                          key={index}
-                          className="px-2 py-1 flex gap-1 bg-white border border-primaryBlue text-primaryBlue text-xs rounded"
+                      {event.ticketLink ? (
+                        <button
+                          onClick={() => window.open(event.ticketLink, '_blank', 'noopener,noreferrer')}
+                          className="px-3 py-1 flex gap-1 bg-white text-primaryBlue text-xs font-medium rounded border border-primaryBlue items-center"
+                          title="Get Ticket"
                         >
-                            <img src="/assets/ticket.svg" className="w-4 h-4" />
-                          {prices}
-                        </span>
-                      ))}
+                          <img src="/assets/ticket.svg" className="w-4 h-4" />
+                          Get Ticket
+                        </button>
+                      ) : (
+                        <button
+                          disabled
+                          className="px-3 py-1 flex gap-1 bg-gray-200 text-gray-400 text-xs font-medium rounded items-center cursor-not-allowed"
+                          title="No ticket link available"
+                        >
+                          <img src="/assets/ticket.svg" className="w-4 h-4" />
+                          Get Ticket
+                        </button>
+                      )}
                     </div>
                   </div>
                 </div>
