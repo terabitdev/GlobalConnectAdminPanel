@@ -1,14 +1,23 @@
 
 
-import React, { useState, useRef } from "react";
-import { Camera, Menu, ArrowLeft, Clock, Calendar, Upload, X } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Camera, Menu, ArrowLeft, Clock, Calendar, Upload, X, CheckCircle, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../Sidebar";
 import { FaCaretDown } from "react-icons/fa";
+import { db, storage } from "../../firebase";
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+import { useAuth } from "../../contexts/AuthContext";
 
 function AddEvent() {
+  const { user, isAdmin, loading: authLoading } = useAuth();
   const [activeMenuItem, setActiveMenuItem] = useState("Event Management");
   const [selectedImages, setSelectedImages] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
   const sidebarRef = useRef();
   const dateInputRef = useRef();
   const timeInputRef = useRef();
@@ -20,7 +29,7 @@ function AddEvent() {
     date: '',
     time: '',
     eventType: '',
-    featuredEvent: 'No',
+    featuredEvent: false,
     venue: '',
     description: '',
     ticketLink: ''
@@ -28,6 +37,18 @@ function AddEvent() {
 
   const cities = ["Select City", "Barcelona", "Madrid", "Valencia", "Seville", "Bilbao"];
   const eventTypes = ["Select Event Type", "Sports", "Music", "Food", "Art", "Technology", "Entertainment"];
+
+  // Auto-hide success alert after 4 seconds
+  useEffect(() => {
+    if (showSuccessAlert) {
+      const timer = setTimeout(() => {
+        setShowSuccessAlert(false);
+        // Navigate to events page after showing success message
+        navigate('/events');
+      }, 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessAlert, navigate]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -63,11 +84,100 @@ function AddEvent() {
     setSelectedImages(prev => prev.filter(img => img.id !== imageId));
   };
 
-  const handleSubmit = (e) => {
+  // Function to upload images to Firebase Storage
+  const uploadImages = async (images) => {
+    const uploadPromises = images.map(async (image, index) => {
+      const imageRef = ref(storage, `events/${Date.now()}_${index}_${image.file.name}`);
+      const snapshot = await uploadBytes(imageRef, image.file);
+      const downloadURL = await getDownloadURL(snapshot.ref);
+      return downloadURL;
+    });
+    
+    return Promise.all(uploadPromises);
+  };
+
+  // Function to save event to Firestore
+  const saveEventToFirestore = async (eventData, imageUrls) => {
+    try {
+      const eventDocument = {
+        ...eventData,
+        images: imageUrls,
+        createdBy: user.uid,
+        createdByEmail: user.email,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+      
+      console.log("Attempting to save event:", eventDocument);
+      
+      const docRef = await addDoc(collection(db, "events"), eventDocument);
+      console.log("Event saved with ID: ", docRef.id);
+      return docRef.id;
+    } catch (error) {
+      console.error("Error saving event: ", error);
+      console.error("Error code:", error.code);
+      console.error("Error message:", error.message);
+      throw error;
+    }
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
-    console.log('Selected images:', selectedImages);
-    // Add form submission logic here
+    setLoading(true);
+    setError("");
+
+    try {
+      // Debug authentication state
+      console.log("Authentication state:", { user: !!user, isAdmin, userUid: user?.uid });
+      
+      // Check if user is authenticated
+      if (!user || !isAdmin) {
+        setError("You must be logged in as an admin to create events");
+        setLoading(false);
+        return;
+      }
+
+      // Validate required fields
+      if (!formData.eventName || !formData.date || !formData.time) {
+        setError("Please fill in all required fields");
+        setLoading(false);
+        return;
+      }
+
+      // Upload images first
+      let imageUrls = [];
+      if (selectedImages.length > 0) {
+        imageUrls = await uploadImages(selectedImages);
+      }
+
+      // Save event to Firestore
+      const eventId = await saveEventToFirestore(formData, imageUrls);
+
+      // Success - show custom success alert
+      setSuccessMessage(`Event "${formData.eventName}" created successfully!`);
+      setShowSuccessAlert(true);
+      setError(""); // Clear any previous errors
+      
+      // Reset form data
+      setFormData({
+        eventName: '',
+        city: '',
+        date: '',
+        time: '',
+        eventType: '',
+        featuredEvent: false,
+        venue: '',
+        description: '',
+        ticketLink: ''
+      });
+      setSelectedImages([]);
+      
+    } catch (error) {
+      console.error("Error creating event:", error);
+      setError("Failed to create event. Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Click handlers for custom icons
@@ -80,6 +190,45 @@ function AddEvent() {
     timeInputRef.current?.focus();
     timeInputRef.current?.showPicker && timeInputRef.current.showPicker();
   };
+
+  // Test function to verify Firestore permissions (for debugging)
+  const testFirestorePermissions = async () => {
+    try {
+      console.log("Testing Firestore permissions...");
+      console.log("Current user:", user);
+      console.log("Is admin:", isAdmin);
+      
+      const testDoc = {
+        testField: "test value",
+        createdBy: user?.uid || "no-user",
+        createdAt: serverTimestamp()
+      };
+      
+      const docRef = await addDoc(collection(db, "events"), testDoc);
+      console.log("✅ Firestore write successful! Document ID:", docRef.id);
+      return true;
+    } catch (error) {
+      console.error("❌ Firestore write failed:", error);
+      return false;
+    }
+  };
+
+  // Make test function available in window for console testing
+  if (typeof window !== 'undefined') {
+    window.testFirestorePermissions = testFirestorePermissions;
+  }
+
+  // Show loading spinner while checking authentication
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50">
+        <div className="flex flex-col items-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primaryBlue"></div>
+          <p className="mt-2 text-sm text-gray-600">Checking authentication...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-50 font-PlusJakarta">
@@ -130,6 +279,55 @@ function AddEvent() {
               <h2 className="text-xl lg:text-2xl font-bold text-black font-PlusJakartaSans mb-8 text-center lg:text-left">Add Event</h2>
               
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Error Message */}
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center">
+                    <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+
+                {/* Success Alert */}
+                {showSuccessAlert && (
+                  <div className="fixed top-4 right-4 z-50 max-w-md animate-pulse">
+                    <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-lg shadow-lg transform transition-all duration-500 ease-in-out hover:shadow-xl">
+                      <div className="flex items-center">
+                        <CheckCircle className="h-6 w-6 text-green-400 mr-3 flex-shrink-0 animate-bounce" />
+                        <div className="flex-1">
+                          <h3 className="text-sm font-semibold text-green-800">Success!</h3>
+                          <p className="mt-1 text-sm text-green-700 font-medium">{successMessage}</p>
+                          <p className="mt-1 text-xs text-green-600">Redirecting to events page...</p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowSuccessAlert(false);
+                            navigate('/events');
+                          }}
+                          className="ml-4 text-green-400 hover:text-green-600 transition-colors p-1 rounded-full hover:bg-green-100"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Loading Alert */}
+                {loading && (
+                  <div className="fixed top-4 right-4 z-50 max-w-md">
+                    <div className="bg-blue-50 border-l-4 border-primaryBlue p-4 rounded-lg shadow-lg transform transition-all duration-300 ease-in-out">
+                      <div className="flex items-center">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-primaryBlue mr-3"></div>
+                        <div className="flex-1">
+                          <h3 className="text-sm font-semibold text-blue-800">Creating Event...</h3>
+                          <p className="mt-1 text-sm text-blue-700">Please wait while we save your event</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Photo Upload Section */}
                 <div className="text-center">
                   <div className="mb-4">
@@ -182,7 +380,7 @@ function AddEvent() {
                       value={formData.eventName}
                       onChange={(e) => handleInputChange('eventName', e.target.value)}
                       placeholder="Enter event name"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-black placeholder:text-grayModern"
                     />
                   </div>
 
@@ -292,9 +490,9 @@ function AddEvent() {
                         <input
                           type="radio"
                           name="featuredEvent"
-                          value="Yes"
-                          checked={formData.featuredEvent === 'Yes'}
-                          onChange={(e) => handleInputChange('featuredEvent', e.target.value)}
+                          value="true"
+                          checked={formData.featuredEvent === true}
+                          onChange={(e) => handleInputChange('featuredEvent', true)}
                           className="mr-2 text-blue-500 focus:ring-blue-500"
                         />
                         <span className="text-sm text-thirdBlack">Yes</span>
@@ -303,9 +501,9 @@ function AddEvent() {
                         <input
                           type="radio"
                           name="featuredEvent"
-                          value="No"
-                          checked={formData.featuredEvent === 'No'}
-                          onChange={(e) => handleInputChange('featuredEvent', e.target.value)}
+                          value="false"
+                          checked={formData.featuredEvent === false}
+                          onChange={(e) => handleInputChange('featuredEvent', false)}
                           className="mr-2 text-blue-500 focus:ring-blue-500"
                         />
                         <span className="text-sm text-thirdBlack">No</span>
@@ -360,14 +558,24 @@ function AddEvent() {
                 <div className="flex flex-col sm:flex-row gap-4 pt-6">
                   <button
                     type="submit"
-                    className="flex-1 bg-primaryBlue  text-white py-3 px-6 rounded-lg  font-medium"
+                    disabled={loading}
+                    className={`flex-1 py-3 px-6 rounded-lg font-medium ${
+                      loading 
+                        ? 'bg-gray-400 text-white cursor-not-allowed' 
+                        : 'bg-primaryBlue text-white hover:bg-blue-700'
+                    }`}
                   >
-                    Create Event
+                    {loading ? 'Creating Event...' : 'Create Event'}
                   </button>
                   <button
                     type="button"
                     onClick={handleBackToEvents}
-                    className="flex-1 bg-white border border-gray-300 text-primaryBlue  py-3 px-6 rounded-lg  font-medium"
+                    disabled={loading}
+                    className={`flex-1 border border-gray-300 py-3 px-6 rounded-lg font-medium ${
+                      loading 
+                        ? 'bg-gray-100 text-gray-400 cursor-not-allowed' 
+                        : 'bg-white text-primaryBlue hover:bg-gray-50'
+                    }`}
                   >
                     Cancel
                   </button>

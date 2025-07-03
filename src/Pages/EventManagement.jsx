@@ -1,67 +1,109 @@
-
-
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Search, ChevronDown, Plus, Menu, Edit, Eye, MapPin, Calendar, Users, Star, Trash2 } from "lucide-react";
 import { FaStar } from "react-icons/fa6";
 import Sidebar from "../Components/Sidebar";
 import { FaCaretDown } from "react-icons/fa";
 import { useNavigate } from "react-router";
+import { db } from "../firebase";
+import { collection, getDocs, query, orderBy, deleteDoc, doc } from "firebase/firestore";
+import { useAuth } from "../contexts/AuthContext";
+
 function EventManagement() {
+  const { user, isAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEventType, setSelectedEventType] = useState("All Events");
   const [selectedStatus, setSelectedStatus] = useState("All Types");
   const [selectedLocation, setSelectedLocation] = useState("All Status");
   const [activeMenuItem, setActiveMenuItem] = useState("Event Management");
+  const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const sidebarRef = useRef();
   const navigate = useNavigate();
+  const [modalOpen, setModalOpen] = useState(false);
+  const [eventToDelete, setEventToDelete] = useState(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+  const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
 
-  const events = [
-    {
-      id: 1,
-      image: "https://images.unsplash.com/photo-1544551763-46a013bb70d5?w=80&h=80&fit=crop",
-      title: "Beach Volleyball Tournament",
-      location: "Barcelona beach, Barcelona",
-      date: "Today 6:00 PM",
-      organizer: "Sofia Martinez (Local Partner)",
-      attendees: 45,
-      description: "Join us for a fun beach volleyball tournament on tall Luka! Swimming contest and activities. Professional courts provided.",
-      status: "Active",
-      featured: true,
-      type: "Sports",
-      tags: ["Active"],
-      price: ["$20"]
-    },
-    {
-      id: 2,
-      image: "https://images.unsplash.com/photo-1493225457124-a3eb161ffa5f?w=80&h=80&fit=crop",
-      title: "DJ Flamenco Show at Patio",
-      location: "Patio de la Música, Barcelona",
-      date: "Tomorrow 8:00 PM",
-      organizer: "Admin (Partner Event)",
-      attendees: 32,
-      description: "Experience authentic flamenco in Barcelona's most iconic hall. Professional dancers and musicians. Tickets available online.",
-      status: "Active",
-      featured: false,
-      type: "Music",
-      tags: ["Active"],
-      price: ["$20"]
-    },
-    {
-      id: 3,
-      image: "https://images.unsplash.com/photo-1567521464027-f127ff144326?w=80&h=80&fit=crop",
-      title: "Food Fair - Mercado Central",
-      location: "Mercado Central, Barcelona",
-      date: "Saturday 2:00 PM",
-      organizer: "Barcelona Food Tours (Business Partner)",
-      attendees: 18,
-      description: "Discover the best local foods at Barcelona's historic central market. Guided tour with tastings included.",
-      status: "Active",
-      featured: false,
-      type: "Food",
-      tags: ["Active"],
-      price: ["$20"]
+  // Fetch events from Firebase
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      
+      // Query events collection ordered by creation date
+      const eventsQuery = query(
+        collection(db, "events"),
+        orderBy("createdAt", "desc")
+      );
+      
+      const querySnapshot = await getDocs(eventsQuery);
+      const eventsData = [];
+      
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        
+        // Format date and time for display
+        let formattedDate = "Date not specified";
+        let formattedTime = "Time not specified";
+        
+        if (data.date && data.time) {
+          try {
+            const eventDate = new Date(data.date + 'T' + data.time);
+            formattedDate = eventDate.toLocaleDateString('en-US', {
+              weekday: 'long',
+              month: 'long',
+              day: 'numeric',
+              year: 'numeric'
+            });
+            formattedTime = eventDate.toLocaleTimeString('en-US', {
+              hour: 'numeric',
+              minute: '2-digit',
+              hour12: true
+            });
+          } catch (error) {
+            console.error("Error formatting date:", error);
+            formattedDate = data.date || "Date not specified";
+            formattedTime = data.time || "Time not specified";
+          }
+        }
+        
+        const eventData = {
+          id: doc.id,
+          title: data.eventName || "Untitled Event",
+          location: data.venue || "Location not specified",
+          city: data.city || "City not specified",
+          date: `${formattedDate} at ${formattedTime}`,
+          time: data.time || "Time not specified",
+          organizer: data.createdByEmail || "Unknown Organizer",
+          attendees: Math.floor(Math.random() * 50) + 10, // Random attendees for now
+          description: data.description || "No description available",
+          status: "Active", // Default status
+          featured: data.featuredEvent === true,
+          type: data.eventType || "General",
+          tags: ["Active"],
+          price: ["$20"], // Default price for now
+          image: data.images && data.images.length > 0 ? data.images[0] : "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=200&h=200&fit=crop", // First image from array with fallback
+          ticketLink: data.ticketLink || "",
+          createdAt: data.createdAt,
+          createdBy: data.createdBy
+        };
+        eventsData.push(eventData);
+      });
+      
+      setEvents(eventsData);
+      console.log("Events fetched:", eventsData);
+    } catch (error) {
+      console.error("Error fetching events:", error);
+      setError("Failed to load events. Please try again.");
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
+
+  useEffect(() => {
+    fetchEvents();
+  }, []);
 
   const eventTypes = ["All Events", "Sports", "Music", "Food", "Art", "Technology"];
   const statusTypes = ["All Types", "Live", "Upcoming", "Completed"];
@@ -85,8 +127,24 @@ function EventManagement() {
   };
 
   const handleDeleteEvent = (eventId) => {
-    console.log(`Delete event ${eventId}`);
-    // Add delete logic here
+    setEventToDelete(eventId);
+    setModalOpen(true);
+  };
+
+  const confirmDeleteEvent = async () => {
+    if (!eventToDelete) return;
+    setDeleteLoading(true);
+    try {
+      await deleteDoc(doc(db, "events", eventToDelete));
+      setEvents(events.filter(event => event.id !== eventToDelete));
+      setToast({ show: true, message: 'Event deleted successfully!', type: 'success' });
+    } catch (error) {
+      setToast({ show: true, message: 'Failed to delete event. Please try again.', type: 'error' });
+    } finally {
+      setDeleteLoading(false);
+      setModalOpen(false);
+      setEventToDelete(null);
+    }
   };
 
   const handleViewEvent = (eventId) => {
@@ -104,6 +162,14 @@ function EventManagement() {
       event.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.organizer.toLowerCase().includes(searchQuery.toLowerCase())
   );
+
+  // Auto-hide toast after 3s
+  useEffect(() => {
+    if (toast.show) {
+      const timer = setTimeout(() => setToast({ ...toast, show: false }), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   // Mobile Event Card Component
   const EventCard = ({ event }) => (
@@ -172,8 +238,46 @@ function EventManagement() {
     </div>
   );
 
+  const DeleteModal = () => (
+    modalOpen && (
+      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-30">
+        <div className="bg-white rounded-lg shadow-lg p-6 w-full max-w-sm">
+          <h3 className="text-lg font-semibold mb-2 text-red-600">Delete Event</h3>
+          <p className="mb-4 text-gray-700">Are you sure you want to delete this event? This action cannot be undone.</p>
+          <div className="flex justify-end space-x-2">
+            <button
+              onClick={() => { setModalOpen(false); setEventToDelete(null); }}
+              className="px-4 py-2 rounded bg-gray-100 text-gray-700 hover:bg-gray-200"
+              disabled={deleteLoading}
+            >
+              Cancel
+            </button>
+            <button
+              onClick={confirmDeleteEvent}
+              className={`px-4 py-2 rounded bg-red-600 text-white hover:bg-red-700 flex items-center ${deleteLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
+              disabled={deleteLoading}
+            >
+              {deleteLoading && <span className="animate-spin rounded-full h-4 w-4 border-b-2 border-white mr-2"></span>}
+              Delete
+            </button>
+          </div>
+        </div>
+      </div>
+    )
+  );
+
+  const Toast = () => (
+    toast.show && (
+      <div className={`fixed top-4 right-4 z-50 px-4 py-3 rounded shadow-lg text-white ${toast.type === 'success' ? 'bg-green-500' : 'bg-red-500'}`}> 
+        {toast.message}
+      </div>
+    )
+  );
+
   return (
     <div className="flex h-screen bg-gray-50 ">
+      <DeleteModal />
+      <Toast />
       {/* Sidebar Component */}
       <Sidebar 
         ref={sidebarRef}
@@ -207,16 +311,45 @@ function EventManagement() {
           {/* Header with Add Button - hidden on mobile since it's in the top bar */}
           <div className="hidden lg:flex items-center justify-between mb-6">
             <h1 className="text-xl sm:text-2xl font-bold font-PlusJakartaSans text-black">Event Management</h1>
-            <button
-              onClick={handleAddEvent}
-              className="flex items-center space-x-2 bg-primaryBlue hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
-            >
-              <Plus size={20} />
-              <span>Add New Event</span>
-            </button>
+            <div className="flex items-center space-x-3">
+              <button
+                onClick={handleAddEvent}
+                className="flex items-center space-x-2 bg-primaryBlue hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
+              >
+                <Plus size={20} />
+                <span>Add New Event</span>
+              </button>
+            </div>
           </div>
 
-          {/* Search and Filter Bar */}
+          {/* Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center py-12">
+              <div className="flex flex-col items-center">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primaryBlue"></div>
+                <p className="mt-2 text-sm text-gray-600">Loading events...</p>
+              </div>
+            </div>
+          )}
+
+          {/* Error State */}
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
+              <div className="flex items-center justify-between">
+                <p>{error}</p>
+                <button
+                  onClick={fetchEvents}
+                  className="bg-red-600 text-white px-3 py-1 rounded text-sm hover:bg-red-700 transition-colors"
+                >
+                  Retry
+                </button>
+              </div>
+            </div>
+          )}
+
+          {!loading && !error && (
+            <div>
+              {/* Search and Filter Bar */}
           <div className="flex flex-col space-y-3 mb-6 font-PlusJakartaSans">
             {/* Search Input */}
             <div className="relative flex-1">
@@ -343,8 +476,8 @@ function EventManagement() {
                     </div>
                     
                     {/* Date */}
-                    <div className="flex items-center text-black font-WorkSansMedium mb-2">
-                      <img src="/assets/event.svg" className="w-4 h-4 " />
+                    <div className="flex items-center  text-black font-WorkSansMedium mb-2">
+                      <img src="/assets/event.svg" className="w-4 h-4 mr-1" />
                       <span className="text-sm">{event.date}</span>
                     </div>
                     
@@ -415,6 +548,8 @@ function EventManagement() {
               </div>
             )}
           </div>
+            </div>
+          )}
         </div>
       </div>   
     </div>
