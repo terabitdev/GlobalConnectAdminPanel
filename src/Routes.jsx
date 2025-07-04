@@ -89,6 +89,14 @@ const ProjectRoutes = () => {
             ) 
         },
         { 
+            path: "/restaurants/edit/:restaurantId", 
+            element: (
+                <ProtectedRoute>
+                    <AddRestaurant />
+                </ProtectedRoute>
+            ) 
+        },
+        { 
             path: "/tips", 
             element: (
                 <ProtectedRoute>

@@ -78,12 +78,10 @@ function EventManagement() {
           date: `${formattedDate} at ${formattedTime}`,
           time: data.time || "Time not specified",
           organizer: data.createdByEmail || "Unknown Organizer",
-          attendees: Math.floor(Math.random() * 50) + 10, // Random attendees for now
           description: data.description || "No description available",
           status: "Active", // Default status
           featured: data.featuredEvent === true,
           type: data.eventType || "General",
-      tags: ["Active"],
           image: data.images && data.images.length > 0 ? data.images[0] : "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=200&h=200&fit=crop", // First image from array with fallback
           ticketLink: data.ticketLink || "",
           createdAt: data.createdAt,
@@ -219,7 +217,7 @@ function EventManagement() {
             </div>
             <div className="flex items-center">
               <Users size={12} className="mr-1" />
-              <span>{event.attendees} attending</span>
+              <span  className="w-max">Organizer: {event.organizer}</span>
             </div>
           </div>
         </div>
@@ -228,16 +226,6 @@ function EventManagement() {
       
       {/* Status Tags */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          {event.tags.map((tag, index) => (
-            <span 
-              key={index}
-              className="px-2 py-1 bg-blue-500 text-white text-xs rounded-full"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
         <div className="flex space-x-2">
           <button
             onClick={() => handleEditEvent(event.id)}
@@ -502,9 +490,7 @@ function EventManagement() {
                     {/* Organizer */}
                     <div className="flex items-center space-x-1 text-sm text-black font-WorkSansMedium mb-3">
                       <img src="/assets/admin.svg" className="w-4 h-4" />
-                      <span>Created by {event.organizer}</span>
-                      <img src="/assets/users.svg" className="w-5 h-5" />
-                      <span>• {event.attendees} attending</span>
+                      <span>Created by {event.organizer}</span>                  
                     </div>
                     
                     {/* Description */}
@@ -512,15 +498,15 @@ function EventManagement() {
 
                     {/* Status Tags */}
                     <div className="flex items-center space-x-2">
-                      {event.tags.map((tag, index) => (
+                      {/* {event.tags.map((tag, index) => (
                         <span 
                           key={index}
                           className="px-3 py-1 bg-primaryBlue text-white text-xs rounded"
                         >
                           {tag}
                         </span>
-                      ))}
-
+                      ))} */}
+                      {/* 
                       {event.ticketLink ? (
                         <button
                           onClick={() => window.open(event.ticketLink, '_blank', 'noopener,noreferrer')}
@@ -539,7 +525,7 @@ function EventManagement() {
                             <img src="/assets/ticket.svg" className="w-4 h-4" />
                           Get Ticket
                         </button>
-                      )}
+                      )} */}
                     </div>
                   </div>
                 </div>

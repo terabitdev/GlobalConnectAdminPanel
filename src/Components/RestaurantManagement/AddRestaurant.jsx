@@ -1,12 +1,13 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Camera, Menu, ArrowLeft, X, CheckCircle, AlertCircle } from "lucide-react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../Sidebar";
 import { FaCaretDown } from "react-icons/fa";
+import { useAuth } from "../../contexts/AuthContext";
 
 // Firebase imports
 import { db, storage, auth } from "../../firebase"; // Adjust the path to your Firebase config
-import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
 
 function AddRestaurant() {
@@ -15,6 +16,9 @@ function AddRestaurant() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const sidebarRef = useRef();
   const navigate = useNavigate();
+  const { user, isAdmin } = useAuth();
+  const { restaurantId } = useParams();
+  const isEditMode = Boolean(restaurantId);
   
 
   const [formData, setFormData] = useState({
@@ -37,7 +41,7 @@ function AddRestaurant() {
   const [successMessage, setSuccessMessage] = useState("");
 
   // Auto-hide success alert after 3 seconds
-  React.useEffect(() => {
+  useEffect(() => {
     if (showSuccessAlert) {
       const timer = setTimeout(() => {
         setShowSuccessAlert(false);
@@ -46,6 +50,46 @@ function AddRestaurant() {
       return () => clearTimeout(timer);
     }
   }, [showSuccessAlert, navigate]);
+
+  // Fetch restaurant data for editing
+  useEffect(() => {
+    if (isEditMode) {
+      const fetchRestaurant = async () => {
+        try {
+          const docRef = doc(db, "restaurants", restaurantId);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists()) {
+            const data = docSnap.data();
+            setFormData({
+              restaurantName: data.restaurantName || "",
+              city: data.city || "",
+              cuisineType: data.cuisineType || "",
+              featuredRestaurant: data.featuredRestaurant ? 'Yes' : 'No',
+              phoneNumber: data.phoneNumber || "",
+              address: data.address || "",
+              description: data.description || "",
+              priceRange: data.priceRange || ""
+            });
+            if (data.images && data.images.length > 0) {
+              setSelectedImages(
+                data.images.map((url, idx) => ({
+                  id: idx,
+                  url,
+                  file: null,
+                }))
+              );
+            } else {
+              setSelectedImages([]);
+            }
+          }
+        } catch (error) {
+          console.error("Failed to fetch restaurant for editing:", error);
+          setError("Failed to load restaurant data. Please try again.");
+        }
+      };
+      fetchRestaurant();
+    }
+  }, [restaurantId, isEditMode]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -161,59 +205,77 @@ function AddRestaurant() {
 
       let imageUrls = [];
       
-      // Upload images if any are selected
-      if (selectedImages.length > 0) {
-        console.log('Uploading images...');
-        imageUrls = await uploadImagesToStorage(selectedImages);
-        console.log('Images uploaded successfully:', imageUrls);
+      // Handle image uploads for new images
+      const newImages = selectedImages.filter((img) => img.file);
+      if (newImages.length > 0) {
+        imageUrls = await uploadImagesToStorage(newImages);
       }
 
-      // Prepare restaurant data
-      const restaurantData = {
-        restaurantName: formData.restaurantName.trim(),
-        city: formData.city,
-        cuisineType: formData.cuisineType,
-        featuredRestaurant: formData.featuredRestaurant === 'Yes',
-        phoneNumber: formData.phoneNumber.trim(),
-        address: formData.address.trim(),
-        description: formData.description.trim(),
-        priceRange: formData.priceRange || '',
-        images: imageUrls, // Array of image objects with URLs and metadata
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      };
+      if (isEditMode) {
+        // Merge old and new images for edit mode
+        const allImages = [
+          ...selectedImages.filter((img) => !img.file).map((img) => img.url),
+          ...imageUrls,
+        ];
+        
+        const restaurantData = {
+          restaurantName: formData.restaurantName.trim(),
+          city: formData.city,
+          cuisineType: formData.cuisineType,
+          featuredRestaurant: formData.featuredRestaurant === 'Yes',
+          phoneNumber: formData.phoneNumber.trim(),
+          address: formData.address.trim(),
+          description: formData.description.trim(),
+          priceRange: formData.priceRange || '',
+          images: allImages,
+          updatedAt: serverTimestamp(),
+        };
 
-      // Add document to Firestore
-      console.log('Saving restaurant data...');
-      const docRef = await addDoc(collection(db, "restaurants"), restaurantData);
+        await updateDoc(doc(db, "restaurants", restaurantId), restaurantData);
+        setSuccessMessage('Restaurant updated successfully!');
+      } else {
+        // Create new restaurant
+        const restaurantData = {
+          restaurantName: formData.restaurantName.trim(),
+          city: formData.city,
+          cuisineType: formData.cuisineType,
+          featuredRestaurant: formData.featuredRestaurant === 'Yes',
+          phoneNumber: formData.phoneNumber.trim(),
+          address: formData.address.trim(),
+          description: formData.description.trim(),
+          priceRange: formData.priceRange || '',
+          images: imageUrls,
+          createdAt: serverTimestamp(),
+          updatedAt: serverTimestamp(),
+          createdByEmail: user?.email || '',
+        };
+
+        const docRef = await addDoc(collection(db, "restaurants"), restaurantData);
+        setSuccessMessage('Restaurant created successfully!');
+        
+        // Reset form for create mode
+        setFormData({
+          restaurantName: '',
+          city: '',
+          cuisineType: '',
+          featuredRestaurant: 'No',
+          phoneNumber: '',
+          address: '',
+          description: '',
+          priceRange: ''
+        });
+        setSelectedImages([]);
+      }
       
-      console.log('Restaurant created successfully with ID:', docRef.id);
-      setSuccessMessage('Restaurant created successfully!');
       setShowSuccessAlert(true);
       setError("");
-      // Optionally reset form
-      setFormData({
-        restaurantName: '',
-        city: '',
-        cuisineType: '',
-        featuredRestaurant: 'No',
-        phoneNumber: '',
-        address: '',
-        description: '',
-        priceRange: ''
-      });
-      setSelectedImages([]);
-      // Navigation is handled by auto-hide effect
     } catch (error) {
-      console.error('Error creating restaurant:', error);
-      
-      // Provide specific error messages
       if (error.message.includes('permission') || error.message.includes('unauthorized')) {
         setError('Upload failed: Please check Firebase Storage permissions. Contact your administrator.');
       } else if (error.message.includes('network')) {
         setError('Network error: Please check your internet connection and try again.');
       } else {
-        setError(`Error creating restaurant: ${error.message}`);
+        setError(`Error ${isEditMode ? 'updating' : 'creating'} restaurant: ${error.message}`);
       }
     } finally {
       setIsSubmitting(false);
@@ -247,7 +309,7 @@ function AddRestaurant() {
               <ArrowLeft size={20} className="text-gray-700" />
             </button>
             <h1 className="text-lg sm:text-xl font-semibold text-gray-800 lg:hidden">
-              Add Restaurant
+              {isEditMode ? 'Edit Restaurant' : 'Add Restaurant'}
             </h1>
           </div>
         </div>
@@ -269,7 +331,7 @@ function AddRestaurant() {
             <div className="bg-[#FAFAFB]">
               {/* Header */}
               <h2 className="text-xl lg:text-2xl font-bold text-black font-PlusJakartaSans mb-8 text-center lg:text-left">
-                Add Restaurant
+                {isEditMode ? 'Edit Restaurant' : 'Add Restaurant'}
               </h2>
 
               <form onSubmit={handleSubmit} className="space-y-6">
@@ -562,7 +624,7 @@ function AddRestaurant() {
                     disabled={isSubmitting}
                     className="flex-1 bg-[#4BADE6] text-white py-3 px-6 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    {isSubmitting ? 'Creating Restaurant...' : 'Create Restaurant'}
+                    {isSubmitting ? (isEditMode ? 'Updating Restaurant...' : 'Creating Restaurant...') : (isEditMode ? 'Update Restaurant' : 'Create Restaurant')}
                   </button>
                   <button
                     type="button"
