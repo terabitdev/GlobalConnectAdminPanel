@@ -5,6 +5,8 @@ import Sidebar from "../Components/Sidebar";
 import { FaCaretDown } from "react-icons/fa";
 import { useNavigate } from "react-router";
 import { FaHandshakeSimple } from "react-icons/fa6";
+import { db } from "../firebase";
+import { collection, getDocs, query, orderBy } from "firebase/firestore";
 
 function RestaurantManagement() {
   const [searchQuery, setSearchQuery] = useState("");
@@ -14,57 +16,9 @@ function RestaurantManagement() {
   const [activeMenuItem, setActiveMenuItem] = useState("Restaurant Management");
   const sidebarRef = useRef();
   const navigate = useNavigate();
-
-  const restaurants = [
-    {
-      id: 1,
-      image: "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=120&h=120&fit=crop",
-      name: "Can Majo",
-      address: "Carrer de l'Diputat Amat, 23, Barcelona",
-      cuisine: "Traditional Catalan",
-      rating: 4.5,
-      reviewCount: 23,
-      description: "Traditional Catalan restaurant known for excellent seafood and local specialties. Family-run establishment since 1965.",
-      status: "Active",
-      featured: true,
-      category: "Traditional Catalan",
-      city: "Barcelona",
-      tags: ["Active"],
-      with: "Partner"
-    },
-    {
-      id: 2,
-      image: "https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=120&h=120&fit=crop",
-      name: "Cafe Central",
-      address: "Plaça de la Vila de Madrid, 5, Barcelona",
-      cuisine: "Cafe & Bakery",
-      rating: 4.2,
-      reviewCount: 18,
-      description: "Cozy neighborhood cafe with excellent coffee and pastries. Popular with locals and digital nomads.",
-      status: "Active",
-      featured: false,
-      category: "Cafe & Bakery",
-      city: "Barcelona",
-      tags: ["Active"],
-      with: "Partner"
-    },
-    {
-      id: 3,
-      image: "https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c?w=120&h=120&fit=crop",
-      name: "Cerveceria Moritz",
-      address: "Ronda de Sant Antoni, 41, Barcelona",
-      cuisine: "Brewery & Restaurant",
-      rating: 4.4,
-      reviewCount: 31,
-      description: "Historic brewery with craft beers and modern Mediterranean cuisine. Great for groups and evening socializing.",
-      status: "Active",
-      featured: false,
-      category: "Brewery & Restaurant",
-      city: "Barcelona",
-      tags: ["Active"],
-      with: "Partner"
-    }
-  ];
+  const [restaurants, setRestaurants] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const cities = ["All Cities", "Barcelona", "Madrid", "Valencia", "Seville", "Bilbao"];
   const categories = ["All Categories", "Traditional Catalan", "Cafe & Bakery", "Brewery & Restaurant", "Mediterranean", "Tapas"];
@@ -106,14 +60,52 @@ function RestaurantManagement() {
       restaurant.cuisine.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
+  // Fetch restaurants from Firebase
+  const fetchRestaurants = async () => {
+    try {
+      setLoading(true);
+      setError("");
+      const restaurantsQuery = query(
+        collection(db, "restaurants"),
+        orderBy("createdAt", "desc")
+      );
+      const querySnapshot = await getDocs(restaurantsQuery);
+      const restaurantsData = [];
+      querySnapshot.forEach((doc) => {
+        const data = doc.data();
+        restaurantsData.push({
+          id: doc.id,
+          name: data.restaurantName || "Untitled Restaurant",
+          address: data.address || "No address provided",
+          cuisine: data.cuisineType || "Unknown cuisine",
+          city: data.city || "Unknown city",
+          description: data.description || "No description available",
+          images: data.images || [],
+          featured: data.featuredRestaurant === true,
+          priceRange: data.priceRange || "",
+          phoneNumber: data.phoneNumber || "",
+          createdAt: data.createdAt,
+          // Add more fields as needed
+        });
+      });
+      setRestaurants(restaurantsData);
+    } catch (error) {
+      setError("Failed to load restaurants. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  React.useEffect(() => {
+    fetchRestaurants();
+  }, []);
 
   // Mobile Restaurant Card Component
   const RestaurantCard = ({ restaurant }) => (
     <div className="bg-[#F8F9FA] border border-gray-200 rounded-lg p-4 mb-4 shadow-sm">
       <div className="flex space-x-4 mb-3">
         <img
-          src={restaurant.image}
+          src={restaurant.images && restaurant.images.length > 0 ? restaurant.images[0] : "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=120&h=120&fit=crop"}
           alt={restaurant.name}
           className="w-14 h-14 rounded-md object-cover flex-shrink-0"
         />
@@ -121,7 +113,7 @@ function RestaurantManagement() {
           <div className="flex items-start justify-between mb-2">
             <h3 className="font-semibold text-lg leading-tight">{restaurant.name}</h3>
             {restaurant.featured && (
-              <span className="ml-2 px-2 py-1 bg-red-100 text-red-600 text-xs rounded-full flex-shrink-0">
+              <span className="ml-2 px-2 py-1 bg-red-100 text-red-600 text-xs rounded-full flex-shrink-0 flex items-center">
                 <Star size={10} className="inline mr-1" />
                 Featured
               </span>
@@ -135,27 +127,13 @@ function RestaurantManagement() {
             <div className="flex items-center">
               <span className="text-sm font-medium">{restaurant.cuisine}</span>
             </div>
-            <div className="flex items-center space-x-1">
-                <FaStar size={12} className="text-yellow-500" />
-              <span className="text-xs ml-1">({restaurant.reviewCount} reviews)</span>
-            </div>
+            {/* Add more fields as needed */}
           </div>
         </div>
       </div>
       <p className="text-sm text-gray-600 mb-3 line-clamp-2">{restaurant.description}</p>
-      
       {/* Status Tags */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center space-x-2">
-          {restaurant.tags.map((tag, index) => (
-            <span 
-              key={index}
-              className="px-2 py-1 bg-blue-500 text-white text-xs rounded-full"
-            >
-              {tag}
-            </span>
-          ))}
-        </div>
         <div className="flex space-x-2">
           <button
             onClick={() => handleEditRestaurant(restaurant.id)}
@@ -304,7 +282,7 @@ function RestaurantManagement() {
                 <div className="flex space-x-4">
                   {/* Restaurant Image */}
                   <img
-                    src={restaurant.image}
+                    src={restaurant.images && restaurant.images.length > 0 ? restaurant.images[0] : "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=120&h=120&fit=crop"}
                     alt={restaurant.name}
                     className="w-24 h-34 rounded-l-3xl object-cover"
                   />
@@ -364,20 +342,7 @@ function RestaurantManagement() {
                     <p className="text-black font-WorkSansMedium text-sm leading-relaxed mb-4">{restaurant.description}</p>
 
                     {/* Status Tags and With */}
-                    <div className="flex items-center space-x-2">
-                      {restaurant.tags.map((tag, index) => (
-                        <span 
-                          key={index}
-                          className="px-3 py-1 bg-[#4BADE6] text-white text-xs rounded"
-                        >
-                          {tag}
-                        </span>
-                      ))}
-                      <span className="flex items-center gap-1 px-2 py-1 bg-white border border-[#4BADE6] text-[#4BADE6] text-xs rounded">
-                        <FaHandshakeSimple size={13}  className="text-yellow-400" />
-                        {restaurant.with}
-                      </span>
-                    </div>
+                  
                   </div>
                 </div>
               </div>

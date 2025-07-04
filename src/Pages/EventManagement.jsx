@@ -83,7 +83,7 @@ function EventManagement() {
           status: "Active", // Default status
           featured: data.featuredEvent === true,
           type: data.eventType || "General",
-          tags: ["Active"],
+      tags: ["Active"],
           image: data.images && data.images.length > 0 ? data.images[0] : "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?w=200&h=200&fit=crop", // First image from array with fallback
           ticketLink: data.ticketLink || "",
           createdAt: data.createdAt,
@@ -330,14 +330,14 @@ function EventManagement() {
           <div className="hidden lg:flex items-center justify-between mb-6">
             <h1 className="text-xl sm:text-2xl font-bold font-PlusJakartaSans text-black">Event Management</h1>
             <div className="flex items-center space-x-3">
-              <button
-                onClick={handleAddEvent}
-                className="flex items-center space-x-2 bg-primaryBlue hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                <Plus size={20} />
-                <span>Add New Event</span>
-              </button>
-            </div>
+            <button
+              onClick={handleAddEvent}
+              className="flex items-center space-x-2 bg-primaryBlue hover:bg-blue-600 text-white px-4 py-2 rounded-lg transition-colors"
+            >
+              <Plus size={20} />
+              <span>Add New Event</span>
+            </button>
+          </div>
           </div>
 
           {/* Loading State */}
@@ -367,7 +367,7 @@ function EventManagement() {
 
           {!loading && !error && (
             <div>
-              {/* Search and Filter Bar */}
+          {/* Search and Filter Bar */}
           <div className="flex flex-col space-y-3 mb-6 font-PlusJakartaSans">
             {/* Search Input */}
             <div className="relative flex-1">
@@ -536,7 +536,7 @@ function EventManagement() {
                           className="px-3 py-1 flex gap-1 bg-gray-200 text-gray-400 text-xs font-medium rounded items-center cursor-not-allowed"
                           title="No ticket link available"
                         >
-                          <img src="/assets/ticket.svg" className="w-4 h-4" />
+                            <img src="/assets/ticket.svg" className="w-4 h-4" />
                           Get Ticket
                         </button>
                       )}

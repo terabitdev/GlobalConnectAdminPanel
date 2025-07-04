@@ -1,14 +1,21 @@
 import React, { useState, useRef } from "react";
-import { Camera, Menu, ArrowLeft, X } from "lucide-react";
+import { Camera, Menu, ArrowLeft, X, CheckCircle, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../Sidebar";
 import { FaCaretDown } from "react-icons/fa";
 
+// Firebase imports
+import { db, storage, auth } from "../../firebase"; // Adjust the path to your Firebase config
+import { collection, addDoc, serverTimestamp } from "firebase/firestore";
+import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
 function AddRestaurant() {
   const [activeMenuItem, setActiveMenuItem] = useState("Restaurant Management");
   const [selectedImages, setSelectedImages] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const sidebarRef = useRef();
   const navigate = useNavigate();
+  
 
   const [formData, setFormData] = useState({
     restaurantName: '',
@@ -17,11 +24,28 @@ function AddRestaurant() {
     featuredRestaurant: 'No',
     phoneNumber: '',
     address: '',
-    description: ''
+    description: '',
+    priceRange: ''
   });
 
   const cities = ["Select City", "Barcelona", "Madrid", "Valencia", "Seville", "Bilbao"];
   const cuisineTypes = ["Select Cuisine", "Traditional Catalan", "Mediterranean", "Italian", "French", "Asian", "Mexican", "American", "Seafood", "Vegetarian"];
+  const priceRanges = ["$", "$$", "$$$", "$$$$"];
+
+  const [error, setError] = useState("");
+  const [showSuccessAlert, setShowSuccessAlert] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  // Auto-hide success alert after 3 seconds
+  React.useEffect(() => {
+    if (showSuccessAlert) {
+      const timer = setTimeout(() => {
+        setShowSuccessAlert(false);
+        navigate('/restaurants');
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [showSuccessAlert, navigate]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -57,11 +81,143 @@ function AddRestaurant() {
     setSelectedImages(prev => prev.filter(img => img.id !== imageId));
   };
 
-  const handleSubmit = (e) => {
+  const handlePriceRangeSelect = (range) => {
+    setFormData(prev => ({
+      ...prev,
+      priceRange: range
+    }));
+  };
+
+  // Function to upload images to Firebase Storage
+  const uploadImagesToStorage = async (images) => {
+    const uploadPromises = images.map(async (imageObj, index) => {
+      try {
+        // Create a unique filename with timestamp
+        const timestamp = Date.now();
+        const filename = `restaurants/${timestamp}_${index}_${imageObj.file.name.replace(/[^a-zA-Z0-9.]/g, '_')}`;
+        const storageRef = ref(storage, filename);
+        
+        console.log(`Uploading image ${index + 1} to: ${filename}`);
+        
+        // Upload the file with metadata
+        const metadata = {
+          contentType: imageObj.file.type,
+          customMetadata: {
+            originalName: imageObj.file.name,
+            uploadedAt: new Date().toISOString()
+          }
+        };
+        
+        const snapshot = await uploadBytes(storageRef, imageObj.file, metadata);
+        console.log(`Image ${index + 1} uploaded successfully`);
+        
+        // Get the download URL and return just the URL string
+        const downloadURL = await getDownloadURL(snapshot.ref);
+        
+        return downloadURL; // Return only the URL string
+      } catch (error) {
+        console.error(`Error uploading image ${index + 1}:`, error);
+        
+        // Handle specific Firebase errors
+        if (error.code === 'storage/unauthorized') {
+          throw new Error(`Upload failed: You don't have permission to upload files. Please check Firebase Storage rules.`);
+        } else if (error.code === 'storage/invalid-format') {
+          throw new Error(`Upload failed: Invalid file format for image ${index + 1}`);
+        } else if (error.code === 'storage/object-not-found') {
+          throw new Error(`Upload failed: Storage bucket not found`);
+        } else {
+          throw new Error(`Upload failed for image ${index + 1}: ${error.message}`);
+        }
+      }
+    });
+
+    return Promise.all(uploadPromises);
+  };
+
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    console.log('Form submitted:', formData);
-    console.log('Selected images:', selectedImages);
-    // Add form submission logic here
+    setIsSubmitting(true);
+    setError("");
+
+    try {
+      // Validate required fields
+      if (!formData.restaurantName.trim()) {
+        setError('Please enter restaurant name');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (formData.city === 'Select City') {
+        setError('Please select a city');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (formData.cuisineType === 'Select Cuisine') {
+        setError('Please select a cuisine type');
+        setIsSubmitting(false);
+        return;
+      }
+
+      let imageUrls = [];
+      
+      // Upload images if any are selected
+      if (selectedImages.length > 0) {
+        console.log('Uploading images...');
+        imageUrls = await uploadImagesToStorage(selectedImages);
+        console.log('Images uploaded successfully:', imageUrls);
+      }
+
+      // Prepare restaurant data
+      const restaurantData = {
+        restaurantName: formData.restaurantName.trim(),
+        city: formData.city,
+        cuisineType: formData.cuisineType,
+        featuredRestaurant: formData.featuredRestaurant === 'Yes',
+        phoneNumber: formData.phoneNumber.trim(),
+        address: formData.address.trim(),
+        description: formData.description.trim(),
+        priceRange: formData.priceRange || '',
+        images: imageUrls, // Array of image objects with URLs and metadata
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      };
+
+      // Add document to Firestore
+      console.log('Saving restaurant data...');
+      const docRef = await addDoc(collection(db, "restaurants"), restaurantData);
+      
+      console.log('Restaurant created successfully with ID:', docRef.id);
+      setSuccessMessage('Restaurant created successfully!');
+      setShowSuccessAlert(true);
+      setError("");
+      // Optionally reset form
+      setFormData({
+        restaurantName: '',
+        city: '',
+        cuisineType: '',
+        featuredRestaurant: 'No',
+        phoneNumber: '',
+        address: '',
+        description: '',
+        priceRange: ''
+      });
+      setSelectedImages([]);
+      // Navigation is handled by auto-hide effect
+    } catch (error) {
+      console.error('Error creating restaurant:', error);
+      
+      // Provide specific error messages
+      if (error.message.includes('permission') || error.message.includes('unauthorized')) {
+        setError('Upload failed: Please check Firebase Storage permissions. Contact your administrator.');
+      } else if (error.message.includes('network')) {
+        setError('Network error: Please check your internet connection and try again.');
+      } else {
+        setError(`Error creating restaurant: ${error.message}`);
+      }
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -117,6 +273,45 @@ function AddRestaurant() {
               </h2>
 
               <form onSubmit={handleSubmit} className="space-y-6">
+                {/* Error Alert */}
+                {error && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center">
+                    <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+                    <span>{error}</span>
+                  </div>
+                )}
+                {/* Success Alert */}
+                {showSuccessAlert && (
+                  <div className="fixed top-4 right-4 z-50 max-w-md animate-pulse">
+                    <div className="bg-green-50 border-l-4 border-green-400 p-4 rounded-lg shadow-lg transform transition-all duration-500 ease-in-out hover:shadow-xl">
+                      <div className="flex items-center">
+                        <CheckCircle className="h-6 w-6 text-green-400 mr-3 flex-shrink-0 animate-bounce" />
+                        <div className="flex-1">
+                          <h3 className="text-sm font-semibold text-green-800">
+                            Success!
+                          </h3>
+                          <p className="mt-1 text-sm text-green-700 font-medium">
+                            {successMessage}
+                          </p>
+                          <p className="mt-1 text-xs text-green-600">
+                            Redirecting to restaurants page...
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowSuccessAlert(false);
+                            navigate("/restaurants");
+                          }}
+                          className="ml-4 text-green-400 hover:text-green-600 transition-colors p-1 rounded-full hover:bg-green-100"
+                        >
+                          <X className="h-4 w-4" />
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {/* Photo Upload Section */}
                 <div className="text-center">
                   <div className="mb-4">
@@ -127,6 +322,7 @@ function AddRestaurant() {
                         accept="image/*"
                         onChange={handleImageUpload}
                         className="hidden"
+                        disabled={isSubmitting}
                       />
                       <div className="w-24 h-24 mx-auto bg-[#FAFAFB] rounded-lg flex flex-col items-center justify-center border-2 border-dashed border-[#4BADE6]">
                         <Camera size={32} className="text-[#4BADE6] mb-2" />
@@ -151,6 +347,7 @@ function AddRestaurant() {
                             type="button"
                             onClick={() => removeImage(image.id)}
                             className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
+                            disabled={isSubmitting}
                           >
                             <X size={12} />
                           </button>
@@ -164,7 +361,7 @@ function AddRestaurant() {
                   {/* Restaurant Name */}
                   <div className="lg:col-span-2">
                     <label className="block text-sm font-medium text-thirdBlack mb-2">
-                      Restaurant Name
+                      Restaurant Name *
                     </label>
                     <input
                       type="text"
@@ -174,13 +371,15 @@ function AddRestaurant() {
                       }
                       placeholder="Enter restaurant name"
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
+                      disabled={isSubmitting}
+                      required
                     />
                   </div>
 
                   {/* City */}
                   <div className="lg:col-span-2">
                     <label className="block text-sm font-medium text-thirdBlack mb-2">
-                      City
+                      City *
                     </label>
                     <div className="relative">
                       <select
@@ -189,6 +388,8 @@ function AddRestaurant() {
                           handleInputChange("city", e.target.value)
                         }
                         className="appearance-none w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
+                        disabled={isSubmitting}
+                        required
                       >
                         {cities.map((city) => (
                           <option key={city} value={city}>
@@ -206,7 +407,7 @@ function AddRestaurant() {
                   {/* Cuisine Type */}
                   <div className="lg:col-span-2">
                     <label className="block text-sm font-medium text-thirdBlack mb-2">
-                      Cuisine Type
+                      Cuisine Type *
                     </label>
                     <div className="relative">
                       <select
@@ -215,6 +416,8 @@ function AddRestaurant() {
                           handleInputChange("cuisineType", e.target.value)
                         }
                         className="appearance-none w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
+                        disabled={isSubmitting}
+                        required
                       >
                         {cuisineTypes.map((type) => (
                           <option key={type} value={type}>
@@ -248,6 +451,7 @@ function AddRestaurant() {
                             )
                           }
                           className="mr-2 text-[#4BADE6] focus:ring-[#4BADE6]"
+                          disabled={isSubmitting}
                         />
                         <span className="text-sm text-thirdBlack">Yes</span>
                       </label>
@@ -264,6 +468,7 @@ function AddRestaurant() {
                             )
                           }
                           className="mr-2 text-[#4BADE6] focus:ring-[#4BADE6]"
+                          disabled={isSubmitting}
                         />
                         <span className="text-sm text-thirdBlack">No</span>
                       </label>
@@ -273,16 +478,44 @@ function AddRestaurant() {
                   {/* Price Range for Reservations */}
                   <div className="lg:col-span-2">
                     <div className="relative">
-                      <div className="w-full px-4 h-20  border border-gray-300 rounded-3xl  bg-white font-PlusJakartaSans ">
-                        <h3 className=" text-sm mt-3 ">Price Range (For Restaurants)</h3>
+                      <div className="w-full px-4 h-20 border border-gray-300 rounded-3xl bg-white font-PlusJakartaSans">
+                        <h3 className="text-sm mt-3">Price Range (For Restaurants)</h3>
                         <div className="flex items-center gap-2 mt-2">
-                          <span className="text-xs text-gray-500 bg-[#E2F2FB] rounded-2xl px-4 py-1">$</span>
-                          <span className="text-xs text-gray-500 bg-[#E2F2FB] rounded-2xl px-4 py-1">$$</span>
-                          <span className="text-xs text-gray-500 bg-[#E2F2FB] rounded-2xl px-4 py-1">$$$</span>
-                          <span className="text-xs text-gray-500 bg-[#E2F2FB] rounded-2xl px-4 py-1">$$$$</span>
-                          </div>
+                          {priceRanges.map((range) => (
+                            <button
+                              key={range}
+                              type="button"
+                              onClick={() => handlePriceRangeSelect(range)}
+                              className={`text-xs rounded-2xl px-4 py-1 transition-colors ${
+                                formData.priceRange === range
+                                  ? 'bg-[#4BADE6] text-white'
+                                  : 'text-gray-500 bg-[#E2F2FB] hover:bg-[#4BADE6] hover:text-white'
+                              }`}
+                              disabled={isSubmitting}
+                            >
+                              {range}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                     </div>
+                  </div>
+
+                  {/* Phone Number */}
+                  <div className="lg:col-span-2">
+                    <label className="block text-sm font-medium text-thirdBlack mb-2">
+                      Phone Number
+                    </label>
+                    <input
+                      type="tel"
+                      value={formData.phoneNumber}
+                      onChange={(e) =>
+                        handleInputChange("phoneNumber", e.target.value)
+                      }
+                      placeholder="Enter phone number"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
+                      disabled={isSubmitting}
+                    />
                   </div>
 
                   {/* Address */}
@@ -299,6 +532,7 @@ function AddRestaurant() {
                         }
                         placeholder="Enter Address"
                         className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
+                        disabled={isSubmitting}
                       />
                     </div>
                   </div>
@@ -316,6 +550,7 @@ function AddRestaurant() {
                       placeholder="Describe about your restaurant"
                       rows={4}
                       className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] resize-none font-PlusJakartaSans text-grayModern"
+                      disabled={isSubmitting}
                     />
                   </div>
                 </div>
@@ -324,14 +559,16 @@ function AddRestaurant() {
                 <div className="flex flex-col sm:flex-row gap-4 pt-6">
                   <button
                     type="submit"
-                    className="flex-1 bg-[#4BADE6]  text-white py-3 px-6 rounded-lg  font-medium"
+                    disabled={isSubmitting}
+                    className="flex-1 bg-[#4BADE6] text-white py-3 px-6 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
-                    Create Restaurant
+                    {isSubmitting ? 'Creating Restaurant...' : 'Create Restaurant'}
                   </button>
                   <button
                     type="button"
                     onClick={handleBackToRestaurants}
-                    className="flex-1 bg-white border border-gray-300 text-primaryBlue  py-3 px-6 rounded-lg  font-medium"
+                    disabled={isSubmitting}
+                    className="flex-1 bg-white border border-gray-300 text-primaryBlue py-3 px-6 rounded-lg font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     Cancel
                   </button>
