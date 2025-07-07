@@ -1,44 +1,88 @@
-
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import { Plus, Menu } from "lucide-react";
 import Sidebar from "../Components/Sidebar";
 import UserDistributionChart from "../Components/UserDistributionChart";
 import { useNavigate } from "react-router-dom";
+import { db } from "../firebase";
+import { collection, query, where, getDocs } from "firebase/firestore";
 
 function Dashboard() {
   const [activeMenuItem, setActiveMenuItem] = useState("Dashboard");
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    activeUsers: 0,
+    totalRestaurants: 0,
+    totalTips: 0,
+    activeEvents: 0,
+  });
   const sidebarRef = useRef();
   const Navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchStats = async () => {
+      try {
+        setLoading(true);
+        // Fetch users with role 'user'
+        const usersQuery = query(
+          collection(db, "users"),
+          where("role", "==", "user")
+        );
+        const usersSnapshot = await getDocs(usersQuery);
+        const activeUsersCount = usersSnapshot.size;
+
+        // Fetch total restaurants
+        const restaurantsSnapshot = await getDocs(collection(db, "restaurants"));
+        const restaurantsCount = restaurantsSnapshot.size;
+
+        // Fetch total tips
+        const tipsSnapshot = await getDocs(collection(db, "tips"));
+        const tipsCount = tipsSnapshot.size;
+
+        // Fetch total events
+        const eventsSnapshot = await getDocs(collection(db, "events"));
+        const eventsCount = eventsSnapshot.size;
+
+        setStats({
+          activeUsers: activeUsersCount,
+          totalRestaurants: restaurantsCount,
+          totalTips: tipsCount,
+          activeEvents: eventsCount,
+        });
+      } catch (error) {
+        console.error("Error fetching stats:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchStats();
+  }, []);
 
   const statsCards = [
     {
       title: "Active Users",
-      value: "2,847",
-      change: "+12% from last period",
+      value: stats.activeUsers.toString(),
       bgColor: "bg-[#3B82F640]",
       iconPath: "/assets/dashboard/user.svg",
       changeColor: "text-[#3B82F6]"
     },
     {
       title: "Restaurants",
-      value: "156",
-      change: "+8% from last period",
+      value: stats.totalRestaurants.toString(),
       iconPath: "/assets/dashboard/restaurant.svg",
       bgColor: "bg-[#22C55E40]",
       changeColor: "text-[#22C55E]"
     },
     {
       title: "Total Tips",
-      value: "1,234",
-      change: "+3 from last period",
+      value: stats.totalTips.toString(),
       iconPath: "/assets/dashboard/tips.svg",
       bgColor: "bg-[#A855F740]",
       changeColor: "text-[#A855F7]"
     },
     {
       title: "Active Events",
-      value: "89",
-      change: "+6% from last period",
+      value: stats.activeEvents.toString(),
       iconPath: "/assets/dashboard/events.svg",
       bgColor: "bg-[#EAB30840]",
       changeColor: "text-[#EAB308]"
@@ -106,13 +150,19 @@ function Dashboard() {
                         e.target.style.display = 'none';
                       }}
                     />
-                    <p className={`text-xs sm:text-xs ${card.changeColor} text-right leading-tight`}>
-                      {card.change}
-                    </p>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-lg sm:text-2xl font-bold text-black">{card.value}</p>
-                    <p className="text-xs sm:text-sm font-normal text-black">{card.title}</p>
+                    {loading ? (
+                      <div className="animate-pulse">
+                        <div className={`h-6 sm:h-8 ${card.bgColor} rounded w-16 mb-1`}></div>
+                        <div className={`h-4 sm:h-5 ${card.bgColor} rounded w-24`}></div>
+                      </div>
+                    ) : (
+                      <>
+                        <p className="text-lg sm:text-2xl font-bold text-black">{card.value}</p>
+                        <p className="text-xs sm:text-sm font-normal text-black">{card.title}</p>
+                      </>
+                    )}
                   </div>
                 </div>
               );
