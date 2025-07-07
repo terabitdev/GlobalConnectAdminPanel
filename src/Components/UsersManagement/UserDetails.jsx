@@ -1,23 +1,57 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Calendar, ChevronDown, Menu, ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Sidebar from '../Sidebar';
+import { db } from '../../firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 const UserDetails = () => {
   const [activeMenuItem, setActiveMenuItem] = useState("Users");
+  const [loading, setLoading] = useState(true);
   const sidebarRef = useRef();
   const navigate = useNavigate();
   const { userId } = useParams();
 
   const [formData, setFormData] = useState({
-    fullName: 'Mohammad Umer',
-    dateOfBirth: 'August 13, 2000',
-    nationality: 'Pakistani',
-    homeCity: 'Islamabad',
-    countriesVisited: 'Spain, Italy, Germany and France'
+    fullName: '',
+    dateOfBirth: '',
+    nationality: '',
+    homeCity: '',
+    countriesVisited: '',
+    profileImageUrl: ''
   });
 
   const [isNationalityOpen, setIsNationalityOpen] = useState(false);
+
+  useEffect(() => {
+    const fetchUserDetails = async () => {
+      try {
+        const userDoc = await getDoc(doc(db, "users", userId));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setFormData({
+            fullName: userData.fullName || '',
+            dateOfBirth: userData.dateOfBirth || '',
+            nationality: userData.nationality || '',
+            homeCity: userData.homeCity || '',
+            countriesVisited: userData.countriesVisited || '',
+            profileImageUrl: userData.profileImageUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face'
+          });
+        } else {
+          console.error("User not found");
+          navigate('/users-management');
+        }
+      } catch (error) {
+        console.error("Error fetching user details:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (userId) {
+      fetchUserDetails();
+    }
+  }, [userId, navigate]);
 
   const nationalities = [
     'Pakistani',
@@ -47,10 +81,20 @@ const UserDetails = () => {
     sidebarRef.current?.openDrawer();
   };
 
-
   const handleBackToUsers = () => {
     navigate('/users-management');
   };
+
+  if (loading) {
+    return (
+      <div className="flex h-screen bg-gray-50 font-PlusJakartaSans justify-center items-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primaryBlue mx-auto mb-4"></div>
+          <p className="text-gray-500 text-lg">Loading user details...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex h-screen bg-gray-50 font-PlusJakartaSans">
@@ -96,7 +140,7 @@ const UserDetails = () => {
 
           {/* Main Content Container */}
           <div className="w-full">
-            <div className="bg-[#FAFAFB]  p-6 sm:p-0 ">
+            <div className="bg-[#FAFAFB] p-6 sm:p-0">
               {/* Header */}
               <h2 className="text-xl lg:text-2xl font-bold text-black font-PlusJakarta mb-8 text-center lg:text-left">User Details</h2>
               
@@ -104,9 +148,12 @@ const UserDetails = () => {
               <div className="flex justify-center mb-8">
                 <div className="relative">
                   <img
-                    src="https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face"
+                    src={formData.profileImageUrl}
                     alt="Profile"
-                    className="w-20 h-20 lg:w-28 lg:h-28 rounded-full object-cover "
+                    className="w-20 h-20 lg:w-28 lg:h-28 rounded-full object-cover"
+                    onError={(e) => {
+                      e.target.src = "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face";
+                    }}
                   />
                 </div>
               </div>
@@ -115,7 +162,7 @@ const UserDetails = () => {
               <div className="space-y-6">
                 {/* Full Name */}
                 <div>
-                  <label className="block text-lg font-noraml text-[#0D121C] mb-2">
+                  <label className="block text-lg font-normal text-[#0D121C] mb-2">
                     Full Name
                   </label>
                   <input
@@ -123,12 +170,13 @@ const UserDetails = () => {
                     value={formData.fullName}
                     onChange={(e) => handleInputChange('fullName', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PublicSansMedium font-normal text-lg"
+                    readOnly
                   />
                 </div>
 
                 {/* Date of Birth */}
                 <div>
-                  <label className="block text-lg font-noraml text-[#0D121C] mb-2">
+                  <label className="block text-lg font-normal text-[#0D121C] mb-2">
                     Date of Birth
                   </label>
                   <div className="relative">
@@ -137,6 +185,7 @@ const UserDetails = () => {
                       value={formData.dateOfBirth}
                       onChange={(e) => handleInputChange('dateOfBirth', e.target.value)}
                       className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PublicSansMedium font-normal text-lg"
+                      readOnly
                     />
                     <Calendar 
                       size={20} 
@@ -145,46 +194,22 @@ const UserDetails = () => {
                   </div>
                 </div>
 
-                {/* Select Nationality */}
+                {/* Nationality */}
                 <div>
-                  <label className="block text-lg font-noraml text-[#0D121C] mb-2">
-                    Select Nationality
+                  <label className="block text-lg font-normal text-[#0D121C] mb-2">
+                    Nationality
                   </label>
-                  <div className="relative">
-                    <button
-                      onClick={() => setIsNationalityOpen(!isNationalityOpen)}
-                      className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] text-left font-PublicSansMedium font-normal text-lg"
-                    >
-                      {formData.nationality}
-                    </button>
-                    <ChevronDown 
-                      size={20} 
-                      className="absolute right-4 top-1/2 transform -translate-y-1/2 text-blue-500"
-                    />
-                    
-                    {/* Dropdown Menu */}
-                    {isNationalityOpen && (
-                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-48 overflow-y-auto">
-                        {nationalities.map((nationality) => (
-                          <button
-                            key={nationality}
-                            onClick={() => {
-                              handleInputChange('nationality', nationality);
-                              setIsNationalityOpen(false);
-                            }}
-                            className="w-full px-4 py-3 text-left hover:bg-gray-50 focus:bg-gray-50 focus:outline-none font-PublicSansMedium font-normal text-lg"
-                          >
-                            {nationality}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+                  <input
+                    type="text"
+                    value={formData.nationality}
+                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PublicSansMedium font-normal text-lg"
+                    readOnly
+                  />
                 </div>
 
                 {/* Home City */}
                 <div>
-                  <label className="block text-lg font-noraml text-[#0D121C] mb-2">
+                  <label className="block text-lg font-normal text-[#0D121C] mb-2">
                     Home City
                   </label>
                   <input
@@ -192,12 +217,13 @@ const UserDetails = () => {
                     value={formData.homeCity}
                     onChange={(e) => handleInputChange('homeCity', e.target.value)}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PublicSansMedium font-normal text-lg"
+                    readOnly
                   />
                 </div>
 
                 {/* Countries Visited */}
                 <div>
-                  <label className="block text-lg font-noraml text-[#0D121C] mb-2">
+                  <label className="block text-lg font-normal text-[#0D121C] mb-2">
                     Countries Visited
                   </label>
                   <textarea
@@ -205,6 +231,7 @@ const UserDetails = () => {
                     onChange={(e) => handleInputChange('countriesVisited', e.target.value)}
                     rows={4}
                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] resize-none font-PublicSansMedium font-normal text-lg"
+                    readOnly
                   />
                 </div>
               </div>

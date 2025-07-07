@@ -1,95 +1,76 @@
-
-
-import React, { useState, useRef } from "react";
-import { Search, ChevronDown, Eye, Trash2, Menu, User, Mail, MapPin, Calendar, Globe } from "lucide-react";
+import React, { useState, useRef, useEffect } from "react";
+import { Search, ChevronDown, Eye, Trash2, Menu, User, Mail, MapPin, Calendar, Globe, X, CheckCircle, AlertCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import Sidebar from "../Components/Sidebar";
 import { FaCaretDown } from "react-icons/fa";
+import { db } from "../firebase";
+import { collection, query, where, getDocs, doc, deleteDoc } from "firebase/firestore";
 
 function UsersManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCountry, setSelectedCountry] = useState("Country");
   const [activeMenuItem, setActiveMenuItem] = useState("Users");
+  const [users, setUsers] = useState([]);
+  const [availableCountries, setAvailableCountries] = useState(["Country"]);
+  const [loading, setLoading] = useState(true);
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteModal, setDeleteModal] = useState({ isOpen: false, userId: null, userName: "" });
+  const [alert, setAlert] = useState({ show: false, type: '', message: '' });
   const sidebarRef = useRef();
   const navigate = useNavigate();
 
-  const users = [
-    {
-      id: 1,
-      avatar:
-        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=40&h=40&fit=crop&crop=face",
-      name: "Jane Cooper",
-      email: "jane.mcnerney44@gmail.com",
-      country: "Spain",
-      joinDate: "November 20, 2020",
-      location: "Madrid",
-      status: "active",
-    },
-    {
-      id: 2,
-      avatar:
-        "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=40&h=40&fit=crop&crop=face",
-      name: "Daniel Lowe",
-      email: "daniel.mcnerney44@gmail.com",
-      country: "Spain",
-      joinDate: "November 16, 2022",
-      location: "Barcelona",
-      status: "active",
-    },
-    {
-      id: 3,
-      avatar:
-        "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=40&h=40&fit=crop&crop=face",
-      name: "Robert Johnson",
-      email: "robert.johnson@gmail.com",
-      country: "France",
-      joinDate: "March 15, 2023",
-      location: "Paris",
-      status: "active",
-    },
-    {
-      id: 4,
-      avatar:
-        "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?w=40&h=40&fit=crop&crop=face",
-      name: "Sarah Wilson",
-      email: "sarah.wilson@gmail.com",
-      country: "Germany",
-      joinDate: "January 10, 2023",
-      location: "Berlin",
-      status: "active",
-    },
-    {
-      id: 5,
-      avatar:
-        "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=40&h=40&fit=crop&crop=face",
-      name: "Michael Chen",
-      email: "michael.chen@gmail.com",
-      country: "Italy",
-      joinDate: "July 8, 2023",
-      location: "Rome",
-      status: "active",
-    },
-    {
-      id: 6,
-      avatar:
-        "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=40&h=40&fit=crop&crop=face",
-      name: "Emily Davis",
-      email: "emily.davis@gmail.com",
-      country: "Portugal",
-      joinDate: "September 12, 2023",
-      location: "Lisbon",
-      status: "active",
-    },
-  ];
+  // Alert timeout cleanup
+  useEffect(() => {
+    let timeoutId;
+    if (alert.show) {
+      timeoutId = setTimeout(() => {
+        setAlert({ show: false, type: '', message: '' });
+      }, 3000);
+    }
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [alert.show]);
 
-  const countries = [
-    "Country",
-    "Spain",
-    "France",
-    "Germany",
-    "Italy",
-    "Portugal",
-  ];
+  const showAlert = (type, message) => {
+    setAlert({ show: true, type, message });
+  };
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        const usersRef = collection(db, "users");
+        const q = query(usersRef, where("role", "==", "user"));
+        const querySnapshot = await getDocs(q);
+        
+        const usersData = querySnapshot.docs.map(doc => ({
+          id: doc.id,
+          avatar: doc.data().profileImageUrl || "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=40&h=40&fit=crop&crop=face", // Use profileImageUrl from Firebase, fallback to default
+          name: doc.data().fullName || "N/A",
+          email: doc.data().email || "N/A",
+          country: doc.data().nationality || "N/A",
+          joinDate: doc.data().dateOfBirth || "N/A",
+          location: doc.data().homeCity || "N/A",
+          status: "active"
+        }));
+        
+        // Extract unique countries from users data
+        const uniqueCountries = [...new Set(usersData
+          .map(user => user.country)
+          .filter(country => country !== "N/A")
+        )].sort();
+        
+        setAvailableCountries(["Country", ...uniqueCountries]);
+        setUsers(usersData);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUsers();
+  }, []);
 
   // Country flag mapping
   const countryFlags = {
@@ -106,13 +87,35 @@ function UsersManagement() {
   };
 
   const handleView = (userId) => {
-    console.log(`View user ${userId}`);
-    navigate(`/users-management/user-details`);
+    navigate(`/users-management/user-details/${userId}`);
   };
 
-  const handleDelete = (userId) => {
-    console.log(`Delete user ${userId}`);
-    // Add delete logic here
+  const handleDelete = (userId, userName) => {
+    setDeleteModal({ isOpen: true, userId, userName });
+  };
+
+  const confirmDelete = async () => {
+    try {
+      setIsDeleting(true);
+      await deleteDoc(doc(db, "users", deleteModal.userId));
+      
+      // Add a small delay to show the loading state
+      await new Promise(resolve => setTimeout(resolve, 500));
+      
+      // Update the users list by filtering out the deleted user
+      setUsers(prevUsers => prevUsers.filter(user => user.id !== deleteModal.userId));
+      
+      // Close the modal
+      setDeleteModal({ isOpen: false, userId: null, userName: "" });
+      
+      // Show success alert
+      showAlert('success', 'User has been successfully deleted');
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      showAlert('error', 'Failed to delete user. Please try again.');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const openDrawer = () => {
@@ -121,8 +124,9 @@ function UsersManagement() {
 
   const filteredUsers = users.filter(
     (user) =>
-      user.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchQuery.toLowerCase())
+      (user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      user.email?.toLowerCase().includes(searchQuery.toLowerCase())) &&
+      (selectedCountry === "Country" || user.country === selectedCountry)
   );
 
   // Function to truncate email for better display
@@ -140,6 +144,9 @@ function UsersManagement() {
             src={user.avatar}
             alt={user.name}
             className="w-12 h-12 rounded-full object-cover"
+            onError={(e) => {
+              e.target.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=40&h=40&fit=crop&crop=face";
+            }}
           />
           <div>
             <h3 className="font-semibold text-gray-900 text-lg">{user.name}</h3>
@@ -155,7 +162,7 @@ function UsersManagement() {
             <Eye size={16} />
           </button>
           <button
-            onClick={() => handleDelete(user.id)}
+            onClick={() => handleDelete(user.id, user.name)}
             className="bg-gray-100 hover:bg-gray-200 text-gray-600 p-2 rounded-md transition-colors"
           >
             <Trash2 size={16} />
@@ -169,18 +176,7 @@ function UsersManagement() {
           <span className="break-all">{user.email}</span>
         </div>
         <div className="flex items-center space-x-2 text-sm text-gray-600">
-          {countryFlags[user.country] ? (
-            <img 
-              src={countryFlags[user.country]} 
-              alt={`${user.country} flag`}
-              className="w-4 h-3 object-cover rounded-sm"
-              onError={(e) => {
-                e.target.style.display = 'none';
-              }}
-            />
-          ) : (
-            <Globe size={14} />
-          )}
+          <Globe size={14} />
           <span>{user.country}</span>
         </div>
         <div className="flex items-center space-x-2 text-sm text-gray-600">
@@ -195,8 +191,52 @@ function UsersManagement() {
     </div>
   );
 
+  // Loading Component
+  const LoadingSpinner = () => (
+    <div className="flex items-center justify-center py-8">
+      <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primaryBlue"></div>
+    </div>
+  );
+
+  // Empty State Component
+  const EmptyState = () => (
+    <div className="text-center py-12">
+      <User size={48} className="mx-auto text-gray-300 mb-4" />
+      <p className="text-gray-500 text-lg">
+        No users found matching your search criteria.
+      </p>
+    </div>
+  );
+
+  // Alert Component
+  const AlertBox = ({ type, message }) => (
+    <div className={`fixed top-4 right-4 z-50 flex items-center p-4 rounded-lg shadow-lg ${
+      type === 'success' ? 'bg-green-50 text-green-800' : 'bg-red-50 text-red-800'
+    }`}>
+      <div className="flex items-center">
+        {type === 'success' ? (
+          <CheckCircle className="w-6 h-6 mr-2 text-green-500" />
+        ) : (
+          <AlertCircle className="w-6 h-6 mr-2 text-red-500" />
+        )}
+        <p className="font-medium">{message}</p>
+      </div>
+      <button
+        onClick={() => setAlert({ show: false, type: '', message: '' })}
+        className="ml-4 text-gray-400 hover:text-gray-600"
+      >
+        <X className="w-5 h-5" />
+      </button>
+    </div>
+  );
+
   return (
     <div className="flex h-screen bg-gray-50 font-PlusJakarta">
+      {/* Alert */}
+      {alert.show && (
+        <AlertBox type={alert.type} message={alert.message} />
+      )}
+
       {/* Sidebar Component */}
       <Sidebar 
         ref={sidebarRef}
@@ -246,7 +286,7 @@ function UsersManagement() {
                 onChange={(e) => setSelectedCountry(e.target.value)}
                 className="appearance-none bg-[#FAFAFB] border placeholder:font-PlusJakarta border-gray-300 rounded-lg px-4 py-2.5 sm:py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent min-w-[140px] w-full sm:w-auto text-sm sm:text-base text-grayModern"
               >
-                {countries.map((country) => (
+                {availableCountries.map((country) => (
                   <option key={country} value={country}>
                     {country}
                   </option>
@@ -259,150 +299,202 @@ function UsersManagement() {
             </div>
           </div>
 
+          {/* Delete Confirmation Modal */}
+          {deleteModal.isOpen && (
+            <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 px-4">
+              <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6 relative animate-fadeIn">
+                {/* Close button */}
+                <button
+                  onClick={() => setDeleteModal({ isOpen: false, userId: null, userName: "" })}
+                  className="absolute top-4 right-4 text-gray-400 hover:text-gray-600 transition-colors"
+                >
+                  <X size={24} />
+                </button>
+
+                {/* Warning Icon */}
+                <div className="flex items-center justify-center mb-6">
+                  <div className="bg-red-100 rounded-full p-3">
+                    <Trash2 size={32} className="text-red-500" />
+                  </div>
+                </div>
+
+                {/* Content */}
+                <h3 className="text-xl font-semibold text-center mb-2">Delete User</h3>
+                <p className="text-gray-600 text-center mb-6">
+                  Are you sure you want to delete <span className="font-semibold">{deleteModal.userName}</span>? This action cannot be undone.
+                </p>
+
+                {/* Buttons */}
+                <div className="flex space-x-3">
+                  <button
+                    onClick={() => setDeleteModal({ isOpen: false, userId: null, userName: "" })}
+                    className="flex-1 px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors font-medium disabled:opacity-50"
+                    disabled={isDeleting}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={confirmDelete}
+                    className="flex-1 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors font-medium disabled:opacity-50 relative"
+                    disabled={isDeleting}
+                  >
+                    {isDeleting ? (
+                      <div className="flex items-center justify-center">
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      </div>
+                    ) : (
+                      'Delete'
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Initial Loading State */}
+          {loading && (
+            <div className="flex items-center justify-center min-h-[400px]">
+              <div className="text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primaryBlue mx-auto mb-4"></div>
+                <p className="text-gray-500 text-lg">Loading users...</p>
+              </div>
+            </div>
+          )}
+
           {/* Desktop Table View - Hidden on Mobile */}
-          <div className="hidden lg:block bg-white rounded-lg shadow-sm border overflow-hidden font-outfit">
-            <div className="w-full">
-              <table className="w-full table-fixed">
-                <thead className="bg-white border-b border-gray-200">
-                  <tr className="font-OutfitSemiBold">
-                    <th className="text-left py-3 px-4 font-semibold text-black w-[20%]">
-                      Name
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-black w-[25%]">
-                      Email
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-black w-[15%]">
-                      Country
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-black w-[18%]">
-                      Date
-                    </th>
-                    <th className="text-left py-3 px-4 font-semibold text-black w-[12%]">
-                      City
-                    </th>
-                    <th className="text-left 2xl:text-center py-3 px-4 font-semibold text-black w-[14%]">
-                      Actions
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredUsers.map((user, index) => (
-                    <tr
-                      key={user.id}
-                      className={`${
-                        index !== filteredUsers.length - 1 ? 'border-b border-[#D9D9D9]' : ''
-                      } bg-[#4BADE61A]`}
-                    >
-                      {/* User Avatar and Name */}
-                      <td className="py-4 px-4">
-                        <div className="flex items-center space-x-3 min-w-0">
-                          <img
-                            src={user.avatar}
-                            alt={user.name}
-                            className="w-10 h-10 rounded-md object-cover flex-shrink-0"
-                          />
-                          <span className="font-Urbanist text-base text-[#212121] truncate">
-                            {user.name}
-                          </span>
-                        </div>
-                      </td>
-
-                      {/* Email */}
-                      <td className="py-4 px-4">
-                        <span 
-                          className="font-Urbanist text-base text-[#212121] block truncate"
-                          title={user.email}
-                        >
-                          {user.email}
-                        </span>
-                      </td>
-
-                      {/* Country with Flag */}
-                      <td className="py-4 px-4">
-                        <div className="flex items-center space-x-2 min-w-0">
-                          {countryFlags[user.country] ? (
-                            <img 
-                              src={countryFlags[user.country]} 
-                              alt={`${user.country} flag`}
-                              className="w-6 h-4 object-cover rounded-sm shadow-sm border border-gray-200 flex-shrink-0"
+          {!loading && (
+            <div className="hidden lg:block bg-white rounded-lg shadow-sm border overflow-hidden font-outfit">
+              <div className="w-full">
+                <table className="w-full table-fixed">
+                  <thead className="bg-white border-b border-gray-200">
+                    <tr className="font-OutfitSemiBold">
+                      <th className="text-left py-3 px-4 font-semibold text-black w-[20%]">
+                        Name
+                      </th>
+                      <th className="text-left py-3 px-4 font-semibold text-black w-[25%]">
+                        Email
+                      </th>
+                      <th className="text-left py-3 px-4 font-semibold text-black w-[15%]">
+                        Country
+                      </th>
+                      <th className="text-left py-3 px-4 font-semibold text-black w-[18%]">
+                        Date of Birth
+                      </th>
+                      <th className="text-left py-3 px-4 font-semibold text-black w-[12%]">
+                        City
+                      </th>
+                      <th className="text-left 2xl:text-center py-3 px-4 font-semibold text-black w-[14%]">
+                        Actions
+                      </th>
+                    </tr>
+                  </thead>
+                  <tbody className={isDeleting ? 'opacity-50' : ''}>
+                    {filteredUsers.map((user, index) => (
+                      <tr
+                        key={user.id}
+                        className={`${
+                          index !== filteredUsers.length - 1 ? 'border-b border-[#D9D9D9]' : ''
+                        } bg-[#4BADE61A]`}
+                      >
+                        {/* User Avatar and Name */}
+                        <td className="py-4 px-4">
+                          <div className="flex items-center space-x-3 min-w-0">
+                            <img
+                              src={user.avatar}
+                              alt={user.name}
+                              className="w-10 h-10 rounded-md object-cover flex-shrink-0"
                               onError={(e) => {
-                                e.target.style.display = 'none';
+                                e.target.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=40&h=40&fit=crop&crop=face";
                               }}
                             />
-                          ) : (
-                            <div className="w-6 h-4 bg-gray-200 rounded-sm flex items-center justify-center flex-shrink-0">
-                              <Globe size={10} className="text-gray-400" />
-                            </div>
-                          )}
-                          <span className="font-Urbanist text-base text-[#212121] truncate">{user.country}</span>
-                        </div>
-                      </td>
+                            <span className="font-Urbanist text-base text-[#212121] truncate">
+                              {user.name}
+                            </span>
+                          </div>
+                        </td>
 
-                      {/* Join Date */}
-                      <td className="py-4 px-4">
-                        <span className="font-Urbanist text-base text-[#212121] block truncate">
-                          {user.joinDate}
-                        </span>
-                      </td>
-
-                      {/* Location */}
-                      <td className="py-4 px-4">
-                        <span className="font-Urbanist text-base text-[#212121] block truncate">
-                          {user.location}
-                        </span>
-                      </td>
-
-                      {/* Actions */}
-                      <td className="py-4 px-4">
-                        <div className="flex justify-center space-x-1">
-                          <button
-                            onClick={() => handleView(user.id)}
-                            className="bg-primaryBlue text-white px-2 py-1.5 rounded text-xs transition-colors"
+                        {/* Email */}
+                        <td className="py-4 px-4">
+                          <span 
+                            className="font-Urbanist text-base text-[#212121] block truncate"
+                            title={user.email}
                           >
-                            View
-                          </button>
-                          <button
-                            onClick={() => handleDelete(user.id)}
-                            className="bg-white text-primaryBlue border border-primaryBlue px-2 py-1.5 rounded text-xs transition-colors"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                            {user.email}
+                          </span>
+                        </td>
 
-            {/* Empty State - Desktop */}
-            {filteredUsers.length === 0 && (
-              <div className="text-center py-12">
-                <User size={48} className="mx-auto text-gray-300 mb-4" />
-                <p className="text-gray-500 text-lg">
-                  No users found matching your search criteria.
-                </p>
+                        {/* Country */}
+                        <td className="py-4 px-4">
+                          <span className="font-Urbanist text-base text-[#212121] truncate">
+                            {user.country}
+                          </span>
+                        </td>
+
+                        {/* Date of Birth */}
+                        <td className="py-4 px-4">
+                          <span className="font-Urbanist text-base text-[#212121] block truncate">
+                            {user.joinDate}
+                          </span>
+                        </td>
+
+                        {/* Location */}
+                        <td className="py-4 px-4">
+                          <span className="font-Urbanist text-base text-[#212121] block truncate">
+                            {user.location}
+                          </span>
+                        </td>
+
+                        {/* Actions */}
+                        <td className="py-4 px-4">
+                          <div className="flex justify-center space-x-1">
+                            <button
+                              onClick={() => handleView(user.id)}
+                              className="bg-primaryBlue text-white px-2 py-1.5 rounded text-xs transition-colors"
+                            >
+                              View
+                            </button>
+                            <button
+                              onClick={() => handleDelete(user.id, user.name)}
+                              className="bg-white text-primaryBlue border border-primaryBlue px-2 py-1.5 rounded text-xs transition-colors"
+                            >
+                              Delete
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+
+                {/* Empty State for Desktop */}
+                {filteredUsers.length === 0 && <EmptyState />}
               </div>
-            )}
-          </div>
+            </div>
+          )}
 
           {/* Mobile Card View - Visible only on Mobile/Tablet */}
-          <div className="lg:hidden">
-            {filteredUsers.length > 0 ? (
-              <div className="space-y-4">
-                {filteredUsers.map((user) => (
-                  <UserCard key={user.id} user={user} />
-                ))}
+          {!loading && (
+            <div className="lg:hidden">
+              {filteredUsers.length > 0 ? (
+                <div className={`space-y-4 ${isDeleting ? 'opacity-50' : ''}`}>
+                  {filteredUsers.map((user) => (
+                    <UserCard key={user.id} user={user} />
+                  ))}
+                </div>
+              ) : (
+                <EmptyState />
+              )}
+            </div>
+          )}
+
+          {/* Deletion Loading Overlay */}
+          {isDeleting && (
+            <div className="fixed inset-0 bg-black bg-opacity-10 flex items-center justify-center z-40">
+              <div className="bg-white rounded-lg p-4 shadow-lg">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primaryBlue mx-auto"></div>
               </div>
-            ) : (
-              <div className="text-center py-12">
-                <User size={48} className="mx-auto text-gray-300 mb-4" />
-                <p className="text-gray-500 text-base">
-                  No users found matching your search criteria.
-                </p>
-              </div>
-            )}
-          </div>
+            </div>
+          )}
         </div>
       </div>   
     </div>

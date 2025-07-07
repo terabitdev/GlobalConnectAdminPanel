@@ -41,7 +41,7 @@ const ProjectRoutes = () => {
             ) 
         },
         { 
-            path: "/users-management/user-details", 
+            path: "/users-management/user-details/:userId", 
             element: (
                 <ProtectedRoute>
                     <UserDetails />
