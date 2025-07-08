@@ -131,14 +131,27 @@ function RestaurantManagement() {
   }, [toast]);
 
   // Mobile Restaurant Card Component
-  const RestaurantCard = ({ restaurant }) => (
+  const RestaurantCard = ({ restaurant }) => {
+    const [imageLoading, setImageLoading] = useState(true);
+
+    return (
     <div className="bg-[#F8F9FA] border border-gray-200 rounded-lg p-4 mb-4 shadow-sm">
       <div className="flex space-x-4 mb-3">
-        <img
-          src={restaurant.images && restaurant.images.length > 0 ? restaurant.images[0] : "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=120&h=120&fit=crop"}
-          alt={restaurant.name}
-          className="w-14 h-14 rounded-md object-cover flex-shrink-0"
-        />
+        <div className="relative w-14 h-14 flex-shrink-0">
+          {imageLoading && (
+            <div className="absolute inset-0 bg-[#22C55E40] rounded-md animate-pulse"></div>
+          )}
+          <img
+            src={restaurant.images && restaurant.images.length > 0 ? restaurant.images[0] : "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=120&h=120&fit=crop"}
+            alt={restaurant.name}
+            className={`w-14 h-14 rounded-md object-cover ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+            onLoad={() => setImageLoading(false)}
+            onError={(e) => {
+              setImageLoading(false);
+              e.target.src = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=120&h=120&fit=crop";
+            }}
+          />
+        </div>
         <div className="flex-1">
           <div className="flex items-start justify-between mb-2">
             <h3 className="font-semibold text-lg leading-tight">{restaurant.name}</h3>
@@ -185,6 +198,85 @@ function RestaurantManagement() {
       </div>
     </div>
   );
+  };
+
+  // Desktop Restaurant Card Component
+  const DesktopRestaurantCard = ({ restaurant }) => {
+    const [imageLoading, setImageLoading] = useState(true);
+    
+    return (
+      <div className="bg-[#4BADE61A] rounded-3xl shadow-sm border p-6">
+        <div className="flex space-x-4">
+          {/* Restaurant Image */}
+          <div className="relative w-24 h-40 flex-shrink-0">
+            {imageLoading && (
+              <div className="absolute inset-0 bg-[#22C55E40] rounded-l-3xl animate-pulse"></div>
+            )}
+            <img
+              src={restaurant.images && restaurant.images.length > 0 ? restaurant.images[0] : "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=120&h=120&fit=crop"}
+              alt={restaurant.name}
+              className={`w-24 h-40 rounded-l-3xl object-cover ${imageLoading ? 'opacity-0' : 'opacity-100'}`}
+              onLoad={() => setImageLoading(false)}
+              onError={(e) => {
+                setImageLoading(false);
+                e.target.src = "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=120&h=120&fit=crop";
+              }}
+            />
+          </div>
+          
+          {/* Restaurant Details */}
+          <div className="flex-1">
+            {/* Name, Buttons, and Featured Badge */}
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-lg font-semibold text-[#212121] font-Urbanist">{restaurant.name}</h3>
+              <div className="flex items-center space-x-4">
+                <div className="flex space-x-4">
+                  <button
+                    onClick={() => handleEditRestaurant(restaurant.id)}
+                    className="bg-[#4BADE6] text-white px-4 py-1 rounded text-sm "
+                  >
+                    Edit
+                  </button>
+                  <button
+                    onClick={() => handleDeleteRestaurant(restaurant.id)}
+                    className="bg-white border border-[#4BADE6] text-[#4BADE6] px-4 py-1 rounded text-sm "
+                  >
+                    Delete
+                  </button>
+                </div>
+                {restaurant.featured && (
+                  <span className="px-2 py-[5px] bg-[#FDE0E0] text-black text-sm rounded flex items-center">
+                    <FaStar size={15} className="mr-1" />
+                    Featured
+                  </span>
+                )}
+              </div>
+            </div>
+            
+            {/* Address */}
+            <div className="flex items-center space-x-2 text-black font-WorkSansMedium mb-1">
+              <img src="/assets/location.svg" className="w-4 h-4" />
+              <span className="text-sm">{restaurant.address}</span>
+              <span className="text-sm font-medium"> • {restaurant.cuisine}</span>
+            </div>
+            
+            {/* Rating */}
+            <div className="flex items-center mb-3">
+              <div className="flex space-x-1 mr-2">
+                <FaStar size={14} className="text-yellow-500" />
+              </div>
+              <span className="text-sm text-black font-WorkSansMedium">
+                {restaurant.rating} • {restaurant.reviewCount} reviews • Added by {restaurant.createdByEmail}
+              </span>
+            </div>
+            
+            {/* Description */}
+            <p className="text-black font-WorkSansMedium text-sm leading-relaxed mb-4">{restaurant.description}</p>
+          </div>
+        </div>
+      </div>
+    );
+  };
 
   const DeleteModal = () => (
     modalOpen && (
@@ -377,74 +469,7 @@ function RestaurantManagement() {
               {/* Desktop Restaurant Cards - Hidden on Mobile */}
               <div className="hidden lg:block space-y-4">
                 {filteredRestaurants.map((restaurant) => (
-                  <div key={restaurant.id} className="bg-[#4BADE61A] rounded-3xl shadow-sm border p-6">
-                    <div className="flex space-x-4">
-                      {/* Restaurant Image */}
-                      <img
-                        src={restaurant.images && restaurant.images.length > 0 ? restaurant.images[0] : "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?w=120&h=120&fit=crop"}
-                        alt={restaurant.name}
-                        className="w-24 h-40 rounded-l-3xl object-cover"
-                      />
-                      
-                      {/* Restaurant Details */}
-                      <div className="flex-1">
-                        {/* Name, Buttons, and Featured Badge */}
-                        <div className="flex items-center justify-between mb-2">
-                          <h3 className="text-lg font-semibold text-[#212121] font-Urbanist">{restaurant.name}</h3>
-                          <div className="flex items-center space-x-4">
-                            <div className="flex space-x-4">
-                              <button
-                                onClick={() => handleEditRestaurant(restaurant.id)}
-                                className="bg-[#4BADE6] text-white px-4 py-1 rounded text-sm "
-                              >
-                                Edit
-                              </button>
-                              <button
-                                onClick={() => handleDeleteRestaurant(restaurant.id)}
-                                className="bg-white border border-[#4BADE6] text-[#4BADE6] px-4 py-1 rounded text-sm "
-                              >
-                                Delete
-                              </button>
-                            </div>
-                            {restaurant.featured && (
-                              <span className="px-2 py-[5px] bg-[#FDE0E0] text-black text-sm rounded flex items-center">
-                                <FaStar size={15} className="mr-1" />
-                                Featured
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                        
-                        {/* Address */}
-                        <div className="flex items-center space-x-2 text-black font-WorkSansMedium mb-1">
-                          <img src="/assets/location.svg" className="w-4 h-4" />
-                          <span className="text-sm">{restaurant.address}</span>
-                          <span className="text-sm font-medium"> • {restaurant.cuisine}</span>
-                        </div>
-                        
-                        {/* Cuisine Type */}
-                        <div className="flex items-center text-black font-WorkSansMedium mb-2">
-                          
-                        </div>
-
-                        {/* Rating */}
-                        <div className="flex items-center mb-3">
-                          <div className="flex space-x-1 mr-2">
-                            <FaStar size={14} className="text-yellow-500" />
-                          </div>
-                          <span className="text-sm text-black font-WorkSansMedium">
-                            {restaurant.rating} • {restaurant.reviewCount} reviews • Added by {restaurant.createdByEmail}
-                          </span>
-                        </div>
-                        
-                        {/* Description */}
-                        <p className="text-black font-WorkSansMedium text-sm leading-relaxed mb-4">{restaurant.description}</p>
-
-                        {/* Status Tags and With */}
-                      
-                      </div>
-                    </div>
-                  </div>
+                  <DesktopRestaurantCard key={restaurant.id} restaurant={restaurant} />
                 ))}
 
                 {/* Empty State - Desktop */}

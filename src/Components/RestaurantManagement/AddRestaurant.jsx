@@ -432,7 +432,7 @@ function AddRestaurant() {
                         handleInputChange("restaurantName", e.target.value)
                       }
                       placeholder="Enter restaurant name"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans "
                       disabled={isSubmitting}
                       required
                     />
@@ -575,7 +575,7 @@ function AddRestaurant() {
                         handleInputChange("phoneNumber", e.target.value)
                       }
                       placeholder="Enter phone number"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans "
                       disabled={isSubmitting}
                     />
                   </div>
@@ -593,7 +593,7 @@ function AddRestaurant() {
                           handleInputChange("address", e.target.value)
                         }
                         placeholder="Enter Address"
-                        className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
+                        className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans "
                         disabled={isSubmitting}
                       />
                     </div>
@@ -611,7 +611,7 @@ function AddRestaurant() {
                       }
                       placeholder="Describe about your restaurant"
                       rows={4}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] resize-none font-PlusJakartaSans text-grayModern"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] resize-none font-PlusJakartaSans "
                       disabled={isSubmitting}
                     />
                   </div>

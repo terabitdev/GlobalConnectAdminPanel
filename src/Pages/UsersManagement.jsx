@@ -135,19 +135,35 @@ function UsersManagement() {
     return email.slice(0, maxLength) + "...";
   };
 
+  const UserImage = ({ src, alt, isMobile }) => {
+    const [imageLoading, setImageLoading] = useState(true);
+    const imageClasses = isMobile ? "w-12 h-12 rounded-full" : "w-10 h-10 rounded-md";
+    
+    return (
+      <div className={imageClasses}>
+        {imageLoading && (
+          <div className={`${imageClasses} bg-[#3B82F640] animate-pulse`} />
+        )}
+        <img
+          src={src}
+          alt={alt}
+          className={`${imageClasses} object-cover flex-shrink-0 ${imageLoading ? 'hidden' : 'block'}`}
+          onLoad={() => setImageLoading(false)}
+          onError={(e) => {
+            setImageLoading(false);
+            e.target.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=40&h=40&fit=crop&crop=face";
+          }}
+        />
+      </div>
+    );
+  };
+
   // Mobile Card Component
   const UserCard = ({ user }) => (
     <div className="bg-white border border-gray-200 rounded-lg p-4 mb-4 shadow-sm">
       <div className="flex items-start justify-between mb-3">
         <div className="flex items-center space-x-3">
-          <img
-            src={user.avatar}
-            alt={user.name}
-            className="w-12 h-12 rounded-full object-cover"
-            onError={(e) => {
-              e.target.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=40&h=40&fit=crop&crop=face";
-            }}
-          />
+          <UserImage src={user.avatar} alt={user.name} isMobile={true} />
           <div>
             <h3 className="font-semibold text-gray-900 text-lg">{user.name}</h3>
             <div className="flex items-center space-x-1 text-sm text-gray-500">    
@@ -399,14 +415,7 @@ function UsersManagement() {
                         {/* User Avatar and Name */}
                         <td className="py-4 px-4">
                           <div className="flex items-center space-x-3 min-w-0">
-                            <img
-                              src={user.avatar}
-                              alt={user.name}
-                              className="w-10 h-10 rounded-md object-cover flex-shrink-0"
-                              onError={(e) => {
-                                e.target.src = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=40&h=40&fit=crop&crop=face";
-                              }}
-                            />
+                            <UserImage src={user.avatar} alt={user.name} isMobile={false} />
                             <span className="font-Urbanist text-base text-[#212121] truncate">
                               {user.name}
                             </span>
