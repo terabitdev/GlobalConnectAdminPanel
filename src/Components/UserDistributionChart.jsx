@@ -29,11 +29,11 @@ function UserDistributionChart() {
     return new Date(year, month, 0).getDate();
   };
 
-  // Get array of years from 1970 to current year + 10
+  // Get array of years from 1970 to current year + 30
   const getYearRange = () => {
     const currentYear = new Date().getFullYear();
     const years = [];
-    for (let year = 1970; year <= currentYear + 10; year++) {
+    for (let year = 1970; year <= currentYear + 30; year++) {
       years.push(year);
     }
     return years;
