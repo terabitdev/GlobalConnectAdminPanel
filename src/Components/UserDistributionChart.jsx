@@ -18,6 +18,7 @@ function UserDistributionChart() {
   const [chartData, setChartData] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [monthlyUserData, setMonthlyUserData] = useState({});
+  const [totalUsers, setTotalUsers] = useState(0);
 
   const months = [
     "Jan", "Feb", "Mar", "Apr", "May", "Jun",
@@ -69,18 +70,55 @@ function UserDistributionChart() {
 
       // Process users and group by month
       const monthlyData = {};
+      let totalUsersWithCreatedAt = 0;
       
       usersSnapshot.forEach((doc) => {
         const userData = doc.data();
         if (userData.createdAt) {
-          const date = new Date(userData.createdAt);
-          const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}`;
-          monthlyData[monthYear] = (monthlyData[monthYear] || 0) + 1;
+          let date;
+          
+          // Handle different date formats
+          if (typeof userData.createdAt === 'string') {
+            // Parse Firebase timestamp string format: "July 14, 2025 at 10:25:41 AM UTC+5"
+            const dateString = userData.createdAt;
+            const match = dateString.match(/(\w+)\s+(\d+),\s+(\d+)/);
+            
+            if (match) {
+              const monthName = match[1];
+              const day = parseInt(match[2]);
+              const year = parseInt(match[3]);
+              
+              const monthMap = {
+                'January': 0, 'February': 1, 'March': 2, 'April': 3, 'May': 4, 'June': 5,
+                'July': 6, 'August': 7, 'September': 8, 'October': 9, 'November': 10, 'December': 11
+              };
+              
+              const monthIndex = monthMap[monthName];
+              if (monthIndex !== undefined) {
+                date = new Date(year, monthIndex, day);
+              }
+            }
+          } else if (userData.createdAt.toDate) {
+            // Handle Firebase Timestamp object
+            date = userData.createdAt.toDate();
+          } else {
+            // Handle regular Date object or timestamp
+            date = new Date(userData.createdAt);
+          }
+          
+          if (date && !isNaN(date.getTime())) {
+            const monthYear = `${date.getFullYear()}-${(date.getMonth() + 1).toString().padStart(2, "0")}`;
+            monthlyData[monthYear] = (monthlyData[monthYear] || 0) + 1;
+            totalUsersWithCreatedAt++;
+          }
         }
       });
 
       console.log("Monthly user data:", monthlyData);
+      console.log("Total users with createdAt field:", totalUsersWithCreatedAt);
+      console.log("Total users without createdAt field:", usersSnapshot.size - totalUsersWithCreatedAt);
       setMonthlyUserData(monthlyData);
+      setTotalUsers(usersSnapshot.size);
       
       updateChartData(monthlyData);
       setIsLoading(false);
@@ -112,16 +150,25 @@ function UserDistributionChart() {
     setChartData(newChartData);
   };
 
-  // Calculate growth percentage
+  // Calculate growth percentage based on total users vs previous period
   const getGrowthPercentage = () => {
-    if (!chartData.length) return 0;
-    const currentMonthData = chartData[selectedMonth - 1];
-    const prevMonthData = chartData[selectedMonth - 2] || chartData[11];
+    if (!monthlyUserData || Object.keys(monthlyUserData).length === 0) return 0;
     
-    if (!currentMonthData || !prevMonthData) return 0;
-    if (prevMonthData.value === 0) return currentMonthData.value > 0 ? 100 : 0;
+    // Get current year's total users
+    const currentYearKey = `${selectedYear}`;
+    const currentYearUsers = Object.keys(monthlyUserData)
+      .filter(key => key.startsWith(currentYearKey))
+      .reduce((sum, key) => sum + monthlyUserData[key], 0);
     
-    return Math.round(((currentMonthData.value - prevMonthData.value) / prevMonthData.value) * 100);
+    // Get previous year's total users
+    const prevYearKey = `${selectedYear - 1}`;
+    const prevYearUsers = Object.keys(monthlyUserData)
+      .filter(key => key.startsWith(prevYearKey))
+      .reduce((sum, key) => sum + monthlyUserData[key], 0);
+    
+    if (prevYearUsers === 0) return currentYearUsers > 0 ? 100 : 0;
+    
+    return Math.round(((currentYearUsers - prevYearUsers) / prevYearUsers) * 100);
   };
 
   useEffect(() => {
@@ -148,7 +195,7 @@ function UserDistributionChart() {
             <h3 className="sm:text-2xl text-sm font-medium text-black">New Users</h3>
             <div className="flex items-center space-x-2">
               <span className="text-base font-semibold text-black">
-                {isLoading ? "Loading..." : `${chartData[selectedMonth - 1]?.value || 0} Users`}
+                {isLoading ? "Loading..." : `${totalUsers} Users`}
               </span>
               <span className={`text-sm ${getGrowthPercentage() > 0 ? 'text-green-500' : getGrowthPercentage() < 0 ? 'text-red-500' : 'text-gray-500'}`}>
                 ({getGrowthPercentage() > 0 ? '+' : ''}{getGrowthPercentage()}%)
