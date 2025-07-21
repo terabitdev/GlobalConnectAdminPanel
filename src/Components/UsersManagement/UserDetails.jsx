@@ -3,7 +3,7 @@ import { Calendar, ChevronDown, Menu, ArrowLeft } from 'lucide-react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Sidebar from '../Sidebar';
 import { db } from '../../firebase';
-import { doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc, collection, getDocs } from 'firebase/firestore';
 
 const UserDetails = () => {
   const [activeMenuItem, setActiveMenuItem] = useState("Users");
@@ -26,15 +26,32 @@ const UserDetails = () => {
   useEffect(() => {
     const fetchUserDetails = async () => {
       try {
+        // Fetch user basic details
         const userDoc = await getDoc(doc(db, "users", userId));
         if (userDoc.exists()) {
           const userData = userDoc.data();
+          
+          // Fetch visited countries from subcollection
+          const visitedCountriesRef = collection(db, "users", userId, "VisitedCountries");
+          const visitedCountriesSnapshot = await getDocs(visitedCountriesRef);
+          
+          const countries = [];
+          visitedCountriesSnapshot.forEach((doc) => {
+            const countryData = doc.data();
+            if (countryData.name) {
+              countries.push(countryData.name);
+            }
+          });
+          
+          // Join countries with comma separation for display
+          const countriesString = countries.join(', ');
+          
           setFormData({
             fullName: userData.fullName || '',
             dateOfBirth: userData.dateOfBirth || '',
             nationality: userData.nationality || '',
             homeCity: userData.homeCity || '',
-            countriesVisited: userData.countriesVisited || '',
+            countriesVisited: countriesString || '',
             profileImageUrl: userData.profileImageUrl || 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=80&h=80&fit=crop&crop=face'
           });
         } else {
