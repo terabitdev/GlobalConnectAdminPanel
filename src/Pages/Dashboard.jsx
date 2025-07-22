@@ -34,9 +34,15 @@ function Dashboard() {
         const restaurantsSnapshot = await getDocs(collection(db, "restaurants"));
         const restaurantsCount = restaurantsSnapshot.size;
 
-        // Fetch total tips
+        // Fetch total tips by counting userTips arrays in each document
         const tipsSnapshot = await getDocs(collection(db, "tips"));
-        const tipsCount = tipsSnapshot.size;
+        let tipsCount = 0;
+        tipsSnapshot.forEach((doc) => {
+          const data = doc.data();
+          if (data.userTips && Array.isArray(data.userTips)) {
+            tipsCount += data.userTips.length;
+          }
+        });
 
         // Fetch total events
         const eventsSnapshot = await getDocs(collection(db, "events"));
