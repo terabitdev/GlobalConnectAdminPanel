@@ -23,9 +23,9 @@ function RestaurantManagement() {
   const [toast, setToast] = useState({ show: false, message: '', type: 'success' });
   const sidebarRef = useRef();
   const navigate = useNavigate();
+  const [cities, setCities] = useState(["All Cities"]);
+  const [categories, setCategories] = useState(["All Categories"]);
 
-  const cities = ["All Cities", "Barcelona", "Madrid", "Valencia", "Seville", "Bilbao"];
-  const categories = ["All Categories", "Traditional Catalan", "Cafe & Bakery", "Brewery & Restaurant", "Mediterranean", "Tapas"];
   const ratings = ["All Ratings", "5 Stars", "4+ Stars", "3+ Stars", "2+ Stars"];
 
   const handleMenuItemClick = (itemName) => {
@@ -72,12 +72,20 @@ function RestaurantManagement() {
     sidebarRef.current?.openDrawer();
   };
 
-  const filteredRestaurants = restaurants.filter(
-    (restaurant) =>
+  const filteredRestaurants = restaurants.filter((restaurant) => {
+    // Search filter
+    const matchesSearch =
       restaurant.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       restaurant.address.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      restaurant.cuisine.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      restaurant.cuisine.toLowerCase().includes(searchQuery.toLowerCase());
+    // City filter
+    const matchesCity =
+      selectedCity === "All Cities" || restaurant.city === selectedCity;
+    // Category filter
+    const matchesCategory =
+      selectedCategory === "All Categories" || restaurant.cuisine === selectedCategory;
+    return matchesSearch && matchesCity && matchesCategory;
+  });
 
   // Fetch restaurants from Firebase
   const fetchRestaurants = async () => {
@@ -90,9 +98,17 @@ function RestaurantManagement() {
       );
       const querySnapshot = await getDocs(restaurantsQuery);
       const restaurantsData = [];
+      const citySet = new Set();
+      const categorySet = new Set();
       querySnapshot.forEach((doc) => {
         const data = doc.data();
-        console.log("Restaurant data:", data); // Debug log
+        // Collect city and cuisineType for dropdowns
+        if (data.city) {
+          citySet.add(data.city);
+        }
+        if (data.cuisineType) {
+          categorySet.add(data.cuisineType);
+        }
         restaurantsData.push({
           id: doc.id,
           name: data.restaurantName || "Untitled Restaurant",
@@ -110,6 +126,8 @@ function RestaurantManagement() {
         });
       });
       setRestaurants(restaurantsData);
+      setCities(["All Cities", ...Array.from(citySet)]);
+      setCategories(["All Categories", ...Array.from(categorySet)]);
       console.log("Fetched restaurants:", restaurantsData); // Debug log
     } catch (error) {
       setError("Failed to load restaurants. Please try again.");

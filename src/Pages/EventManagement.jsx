@@ -34,8 +34,7 @@ function EventManagement() {
   const { user, isAdmin } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedEventType, setSelectedEventType] = useState("All Events");
-  const [selectedStatus, setSelectedStatus] = useState("All Types");
-  const [selectedLocation, setSelectedLocation] = useState("All Status");
+  const [selectedLocation, setSelectedLocation] = useState("All Cities");
   const [activeMenuItem, setActiveMenuItem] = useState("Event Management");
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -52,6 +51,8 @@ function EventManagement() {
   });
   const { eventId } = useParams();
   const isEditMode = Boolean(eventId);
+  const [eventTypes, setEventTypes] = useState(["All Events"]);
+  const [locationTypes, setLocationTypes] = useState(["All Cities"]);
 
   // Fetch events from Firebase
   const fetchEvents = async () => {
@@ -67,6 +68,8 @@ function EventManagement() {
 
       const querySnapshot = await getDocs(eventsQuery);
       const eventsData = [];
+      const eventTypeSet = new Set();
+      const citySet = new Set();
 
       querySnapshot.forEach((doc) => {
         const data = doc.data();
@@ -96,6 +99,14 @@ function EventManagement() {
           }
         }
 
+        // Collect event type and city for dropdowns
+        if (data.eventType) {
+          eventTypeSet.add(data.eventType);
+        }
+        if (data.city) {
+          citySet.add(data.city);
+        }
+
         const eventData = {
           id: doc.id,
           title: data.eventName || "Untitled Event",
@@ -120,6 +131,9 @@ function EventManagement() {
       });
 
       setEvents(eventsData);
+      // Set unique event types and cities for dropdowns
+      setEventTypes(["All Events", ...Array.from(eventTypeSet)]);
+      setLocationTypes(["All Cities", ...Array.from(citySet)]);
       console.log("Events fetched:", eventsData);
     } catch (error) {
       console.error("Error fetching events:", error);
@@ -150,17 +164,6 @@ function EventManagement() {
       fetchEvent();
     }
   }, [eventId]);
-
-  const eventTypes = [
-    "All Events",
-    "Sports",
-    "Music",
-    "Food",
-    "Art",
-    "Technology",
-  ];
-  const statusTypes = ["All Types", "Live", "Upcoming", "Completed"];
-  const locationTypes = ["All Status", "Barcelona", "Madrid", "Valencia"];
 
   const handleMenuItemClick = (itemName) => {
     setActiveMenuItem(itemName);
@@ -216,12 +219,20 @@ function EventManagement() {
     sidebarRef.current?.openDrawer();
   };
 
-  const filteredEvents = events.filter(
-    (event) =>
+  const filteredEvents = events.filter((event) => {
+    // Search filter
+    const matchesSearch =
       event.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
       event.location.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      event.organizer.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+      event.organizer.toLowerCase().includes(searchQuery.toLowerCase());
+    // Event type filter
+    const matchesType =
+      selectedEventType === "All Events" || event.type === selectedEventType;
+    // Location/city filter
+    const matchesLocation =
+      selectedLocation === "All Cities" || event.city === selectedLocation;
+    return matchesSearch && matchesType && matchesLocation;
+  });
 
   // Auto-hide toast after 3s
   useEffect(() => {
@@ -467,25 +478,6 @@ function EventManagement() {
                       {eventTypes.map((type) => (
                         <option key={type} value={type}>
                           {type}
-                        </option>
-                      ))}
-                    </select>
-                    <FaCaretDown
-                      size={24}
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 text-primaryBlue pointer-events-none"
-                    />
-                  </div>
-
-                  {/* Status Filter */}
-                  <div className="relative sm:max-w-[12.5rem] sm:w-full">
-                    <select
-                      value={selectedStatus}
-                      onChange={(e) => setSelectedStatus(e.target.value)}
-                      className="appearance-none bg-[#FAFAFB] border text-grayModern border-gray-300 rounded-lg px-4 py-2.5 sm:py-2 pr-10 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent w-full text-sm sm:text-base"
-                    >
-                      {statusTypes.map((status) => (
-                        <option key={status} value={status}>
-                          {status}
                         </option>
                       ))}
                     </select>

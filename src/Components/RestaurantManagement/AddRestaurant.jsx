@@ -4,11 +4,15 @@ import { useNavigate, useParams } from "react-router-dom";
 import Sidebar from "../Sidebar";
 import { FaCaretDown } from "react-icons/fa";
 import { useAuth } from "../../contexts/AuthContext";
-
+import config from "../../config";
 // Firebase imports
 import { db, storage, auth } from "../../firebase"; // Adjust the path to your Firebase config
 import { collection, addDoc, serverTimestamp, doc, getDoc, updateDoc } from "firebase/firestore";
 import { ref, uploadBytes, getDownloadURL } from "firebase/storage";
+
+
+
+const GOOGLE_MAPS_API_KEY = config.googleMapsApiKey;
 
 function AddRestaurant() {
   const [activeMenuItem, setActiveMenuItem] = useState("Restaurant Management");
@@ -19,7 +23,17 @@ function AddRestaurant() {
   const { user, isAdmin } = useAuth();
   const { restaurantId } = useParams();
   const isEditMode = Boolean(restaurantId);
-  
+
+  // Google Places API states
+  const [useGooglePlaces, setUseGooglePlaces] = useState(false);
+  const [googleMapsLoading, setGoogleMapsLoading] = useState(true);
+  const [apiLoadError, setApiLoadError] = useState("");
+  const [citySuggestions, setCitySuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [suggestionLoading, setSuggestionLoading] = useState(false);
+  const [apiKeyValid, setApiKeyValid] = useState(null);
+  const cityInputRef = useRef();
+  const autocompleteSessionTokenRef = useRef(null);
 
   const [formData, setFormData] = useState({
     restaurantName: '',
@@ -32,13 +46,468 @@ function AddRestaurant() {
     priceRange: ''
   });
 
-  const cities = ["Select City", "Barcelona", "Madrid", "Valencia", "Seville", "Bilbao"];
+  // Fallback cities for when Google Places is not available
+  const fallbackCities = ["Barcelona", "Madrid", "Valencia", "Seville", "Bilbao"];
   const cuisineTypes = ["Select Cuisine", "Traditional Catalan", "Mediterranean", "Italian", "French", "Asian", "Mexican", "American", "Seafood", "Vegetarian"];
   const priceRanges = ["$", "$$", "$$$", "$$$$"];
 
   const [error, setError] = useState("");
   const [showSuccessAlert, setShowSuccessAlert] = useState(false);
   const [successMessage, setSuccessMessage] = useState("");
+
+  // Helper function for legacy API fallback
+  const fallbackToLegacyAPI = (input) => {
+    try {
+      console.log('Using legacy AutocompleteService API');
+      
+      const request = {
+        input: input,
+        types: ['(cities)'],
+        sessionToken: autocompleteSessionTokenRef.current,
+      };
+
+      const service = new window.google.maps.places.AutocompleteService();
+      
+      service.getPlacePredictions(request, (predictions, status) => {
+        setSuggestionLoading(false);
+        
+        if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+          const suggestions = predictions.map(prediction => ({
+            placeId: prediction.place_id,
+            mainText: prediction.structured_formatting.main_text,
+            secondaryText: prediction.structured_formatting.secondary_text || '',
+            description: prediction.description,
+          }));
+          setCitySuggestions(suggestions);
+          setApiKeyValid(true);
+        } else if (status === window.google.maps.places.PlacesServiceStatus.REQUEST_DENIED) {
+          console.error('AutocompleteService request denied - likely API key issue');
+          setApiKeyValid(false);
+          setApiLoadError("Google Places API request denied. Check your API key permissions.");
+          setUseGooglePlaces(false);
+          setCitySuggestions([]);
+        } else {
+          console.error('AutocompleteService error:', status);
+          setCitySuggestions([]);
+        }
+      });
+    } catch (error) {
+      console.error('Legacy API fallback error:', error);
+      setSuggestionLoading(false);
+      setCitySuggestions([]);
+    }
+  };
+
+  // Enhanced Google Maps loading useEffect
+  useEffect(() => {
+    const loadGoogleMapsScript = async () => {
+      try {
+        // First, validate the API key
+        if (!GOOGLE_MAPS_API_KEY) {
+          setApiLoadError("Google Maps API key is missing. Please check your environment variables.");
+          setUseGooglePlaces(false);
+          setGoogleMapsLoading(false);
+          setApiKeyValid(false);
+          return;
+        }
+
+        if (GOOGLE_MAPS_API_KEY.length < 30) {
+          setApiLoadError("Google Maps API key appears to be invalid (too short).");
+          setUseGooglePlaces(false);
+          setGoogleMapsLoading(false);
+          setApiKeyValid(false);
+          return;
+        }
+
+        // Check if already loading or loaded
+        if (window.googleMapsLoading) {
+          const checkInterval = setInterval(() => {
+            if (!window.googleMapsLoading) {
+              clearInterval(checkInterval);
+              if (window.google && 
+                  window.google.maps && 
+                  window.google.maps.places &&
+                  (window.google.maps.places.AutocompleteSuggestion || window.google.maps.places.AutocompleteService)) {
+                setUseGooglePlaces(true);
+                setApiKeyValid(true);
+              } else {
+                setApiLoadError("Google Maps loaded but Places library not available");
+                setUseGooglePlaces(false);
+                setApiKeyValid(false);
+              }
+              setGoogleMapsLoading(false);
+            }
+          }, 100);
+          return;
+        }
+        
+        if (window.google && window.google.maps) {
+          if (window.google.maps.places && 
+              (window.google.maps.places.AutocompleteSuggestion || window.google.maps.places.AutocompleteService)) {
+            setUseGooglePlaces(true);
+            setApiKeyValid(true);
+            setGoogleMapsLoading(false);
+            return;
+          } else {
+            setApiLoadError("Google Maps loaded but Places library missing");
+            setUseGooglePlaces(false);
+            setApiKeyValid(false);
+            setGoogleMapsLoading(false);
+            return;
+          }
+        }
+
+        // Prevent multiple script loads
+        const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+        if (existingScript) {
+          if (!window.google || !window.google.maps) {
+            existingScript.onload = () => {
+              setUseGooglePlaces(true);
+              setApiKeyValid(true);
+              setGoogleMapsLoading(false);
+            };
+          } else {
+            setUseGooglePlaces(true);
+            setApiKeyValid(true);
+            setGoogleMapsLoading(false);
+          }
+          return;
+        }
+
+        // Mark as loading to prevent multiple attempts
+        window.googleMapsLoading = true;
+
+        const script = document.createElement('script');
+        
+        // Enhanced script URL with better error handling
+        script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}&libraries=places&loading=async&callback=initGoogleMapsRestaurant`;
+        script.async = true;
+        script.defer = true;
+        
+        // Create global callback function
+        window.initGoogleMapsRestaurant = () => {
+          window.googleMapsLoading = false;
+          
+          setTimeout(() => {
+            if (window.google && 
+                window.google.maps && 
+                window.google.maps.places &&
+                (window.google.maps.places.AutocompleteSuggestion || window.google.maps.places.AutocompleteService)) {
+              
+              try {
+                // Initialize autocomplete session token for legacy API if available
+                if (window.google.maps.places.AutocompleteSessionToken) {
+                  autocompleteSessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
+                }
+                setUseGooglePlaces(true);
+                setApiKeyValid(true);
+                console.log('Google Places API loaded successfully for restaurants');
+              } catch (error) {
+                console.error('Failed to initialize Google Places:', error);
+                setApiLoadError(`Failed to initialize Google Places: ${error.message}`);
+                setUseGooglePlaces(false);
+                setApiKeyValid(false);
+              }
+            } else {
+              console.error('Google Maps Places library not fully loaded');
+              setApiLoadError("Google Maps Places library not fully loaded");
+              setUseGooglePlaces(false);
+              setApiKeyValid(false);
+            }
+            setGoogleMapsLoading(false);
+          }, 500);
+        };
+        
+        script.onerror = (error) => {
+          console.error('Failed to load Google Maps API:', error);
+          window.googleMapsLoading = false;
+          setApiLoadError("Failed to load Google Maps API. Check your API key and billing settings.");
+          setUseGooglePlaces(false);
+          setApiKeyValid(false);
+          setGoogleMapsLoading(false);
+        };
+        
+        document.head.appendChild(script);
+      } catch (error) {
+        console.error('Unexpected error loading Google Maps:', error);
+        window.googleMapsLoading = false;
+        setApiLoadError(`Unexpected error: ${error.message}`);
+        setUseGooglePlaces(false);
+        setApiKeyValid(false);
+        setGoogleMapsLoading(false);
+      }
+    };
+
+    loadGoogleMapsScript();
+  }, []);
+
+  // Enhanced searchCities function
+  const searchCities = async (input) => {
+    if (!useGooglePlaces || !window.google || !input.trim()) {
+      setCitySuggestions([]);
+      return;
+    }
+
+    setSuggestionLoading(true);
+    
+    try {
+      // Try to use the new AutocompleteSuggestion API first
+      if (window.google.maps.places.AutocompleteSuggestion) {
+        console.log('Using new AutocompleteSuggestion API');
+        
+        const request = {
+          input: input,
+          includedPrimaryTypes: ['locality', 'administrative_area_level_1'],
+          language: 'en',
+          region: 'GLOBAL'
+        };
+
+        try {
+          const { suggestions } = await window.google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
+          
+          setSuggestionLoading(false);
+          
+          if (suggestions && suggestions.length > 0) {
+            const formattedSuggestions = suggestions.map(suggestion => ({
+              placeId: suggestion.placePrediction.placeId,
+              mainText: suggestion.placePrediction.structuredFormat.mainText.text,
+              secondaryText: suggestion.placePrediction.structuredFormat.secondaryText?.text || '',
+              description: suggestion.placePrediction.text.text,
+            }));
+            setCitySuggestions(formattedSuggestions);
+            setApiKeyValid(true);
+          } else {
+            setCitySuggestions([]);
+          }
+        } catch (apiError) {
+          console.error('AutocompleteSuggestion API Error:', apiError);
+          setSuggestionLoading(false);
+          
+          // Check if it's an API key error
+          if (apiError.message && apiError.message.includes('API key')) {
+            setApiKeyValid(false);
+            setApiLoadError(`API Key Error: ${apiError.message}`);
+            setUseGooglePlaces(false);
+          } else {
+            // Try fallback to legacy API
+            console.log('Falling back to legacy AutocompleteService API due to error');
+            fallbackToLegacyAPI(input);
+          }
+        }
+          
+      } else if (window.google.maps.places.AutocompleteService) {
+        fallbackToLegacyAPI(input);
+      } else {
+        console.error('No available Google Places autocomplete service');
+        setSuggestionLoading(false);
+        setCitySuggestions([]);
+      }
+      
+    } catch (error) {
+      console.error('Error in searchCities:', error);
+      setSuggestionLoading(false);
+      setCitySuggestions([]);
+      
+      // Check if it's an API key error
+      if (error.message && error.message.includes('API key')) {
+        setApiKeyValid(false);
+        setApiLoadError(`API Key Error: ${error.message}`);
+        setUseGooglePlaces(false);
+      }
+    }
+  };
+
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (formData.city && useGooglePlaces) {
+        searchCities(formData.city);
+      } else {
+        setCitySuggestions([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [formData.city, useGooglePlaces]);
+
+  // Enhanced retry function
+  const retryGooglePlaces = async () => {
+    setGoogleMapsLoading(true);
+    setApiLoadError("");
+    setUseGooglePlaces(false);
+    setApiKeyValid(null);
+    
+    // Clear any existing loading flag
+    window.googleMapsLoading = false;
+    
+    // Clean up existing callback
+    if (window.initGoogleMapsRestaurant) {
+      delete window.initGoogleMapsRestaurant;
+    }
+    
+    // Remove existing script if any
+    const existingScript = document.querySelector('script[src*="maps.googleapis.com"]');
+    if (existingScript) {
+      existingScript.remove();
+    }
+    
+    // Wait a bit before reloading
+    setTimeout(() => {
+      const script = document.createElement('script');
+      script.src = `https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(GOOGLE_MAPS_API_KEY)}&libraries=places&loading=async&callback=initGoogleMapsRestaurantRetry`;
+      
+      // Create a global callback function for retry
+      window.initGoogleMapsRestaurantRetry = () => {
+        setTimeout(() => {
+          if (window.google && 
+              window.google.maps && 
+              window.google.maps.places &&
+              (window.google.maps.places.AutocompleteSuggestion || window.google.maps.places.AutocompleteService)) {
+            // Initialize session token if available
+            if (window.google.maps.places.AutocompleteSessionToken) {
+              autocompleteSessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
+            }
+            setUseGooglePlaces(true);
+            setApiKeyValid(true);
+            console.log('Google Places API retry successful for restaurants');
+          } else {
+            setApiLoadError("Manual retry failed - Places library still not available");
+            setApiKeyValid(false);
+          }
+          setGoogleMapsLoading(false);
+        }, 100);
+      };
+      
+      script.onerror = () => {
+        setApiLoadError("Failed to load Google Maps script on manual retry");
+        setApiKeyValid(false);
+        setGoogleMapsLoading(false);
+      };
+      
+      document.head.appendChild(script);
+    }, 1000);
+  };
+
+  const handleCityChange = (e) => {
+    const value = e.target.value;
+    setFormData(prev => ({ ...prev, city: value }));
+    setShowSuggestions(true);
+  };
+
+  // Handle city suggestion selection
+  const handleCitySelect = (suggestion) => {
+    setFormData(prev => ({ ...prev, city: suggestion.description }));
+    setCitySuggestions([]);
+    setShowSuggestions(false);
+    
+    // Create new session token for next search (legacy API)
+    if (window.google && window.google.maps && window.google.maps.places && window.google.maps.places.AutocompleteSessionToken) {
+      autocompleteSessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
+    }
+  };
+
+  // Hide suggestions when clicking outside
+  const handleCityInputBlur = () => {
+    // Delay hiding to allow suggestion click
+    setTimeout(() => {
+      setShowSuggestions(false);
+    }, 200);
+  };
+
+  // Show suggestions when focusing input
+  const handleCityInputFocus = () => {
+    if (citySuggestions.length > 0) {
+      setShowSuggestions(true);
+    }
+  };
+
+  // Render city input with Google Places integration
+  const renderCityInput = () => {
+    if (googleMapsLoading) {
+      return (
+        <div className="relative">
+          <input
+            type="text"
+            value={formData.city}
+            disabled
+            placeholder="Loading Google Places..."
+            className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg bg-gray-100 font-PlusJakartaSans text-gray-500"
+          />
+          <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#4BADE6]"></div>
+          </div>
+        </div>
+      );
+    }
+
+    if (useGooglePlaces) {
+      return (
+        <div className="relative">
+          <input
+            ref={cityInputRef}
+            type="text"
+            value={formData.city}
+            onChange={handleCityChange}
+            onFocus={handleCityInputFocus}
+            onBlur={handleCityInputBlur}
+            placeholder="Search for a city..."
+            className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-black placeholder:text-grayModern"
+            disabled={isSubmitting}
+          />
+          <FaCaretDown
+            size={20}
+            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#4BADE6] pointer-events-none"
+          />
+          
+          {/* Suggestions dropdown */}
+          {showSuggestions && citySuggestions.length > 0 && (
+            <div className="absolute left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 mt-1 max-h-56 overflow-y-auto">
+              {suggestionLoading && (
+                <div className="px-4 py-2 text-gray-500 flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#4BADE6] mr-2"></div>
+                  Loading...
+                </div>
+              )}
+              {citySuggestions.map((suggestion) => (
+                <div
+                  key={suggestion.placeId}
+                  onClick={() => handleCitySelect(suggestion)}
+                  className="px-4 py-2 cursor-pointer text-gray-800 hover:bg-blue-50"
+                >
+                  <div className="font-medium">{suggestion.mainText}</div>
+                  <div className="text-sm text-gray-500">{suggestion.secondaryText}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Fallback: dropdown with predefined cities
+    return (
+      <div className="relative">
+        <select
+          value={formData.city}
+          onChange={(e) => setFormData(prev => ({ ...prev, city: e.target.value }))}
+          className="appearance-none w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
+          disabled={isSubmitting}
+          required
+        >
+          <option value="">Select City</option>
+          {fallbackCities.map((city) => (
+            <option key={city} value={city}>
+              {city}
+            </option>
+          ))}
+        </select>
+        <FaCaretDown
+          size={20}
+          className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#4BADE6] pointer-events-none"
+        />
+      </div>
+    );
+  };
 
   // Auto-hide success alert after 3 seconds
   useEffect(() => {
@@ -191,7 +660,7 @@ function AddRestaurant() {
         return;
       }
 
-      if (formData.city === 'Select City') {
+      if (!formData.city || formData.city === 'Select City') {
         setError('Please select a city');
         setIsSubmitting(false);
         return;
@@ -342,6 +811,71 @@ function AddRestaurant() {
                     <span>{error}</span>
                   </div>
                 )}
+
+                {/* Enhanced API key validation alert */}
+                {!googleMapsLoading && apiKeyValid === false && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center">
+                      <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+                      <div>
+                        <div className="font-medium">Google Maps API Key Issue</div>
+                        <div className="text-sm mt-1">
+                          Please check:
+                          <ul className="list-disc list-inside mt-1 text-xs">
+                            <li>API key is set in environment variables (REACT_APP_GOOGLE_MAPS_API_KEY)</li>
+                            <li>API key has Places API enabled</li>
+                            <li>Billing is enabled for your Google Cloud project</li>
+                            <li>API key restrictions allow your domain</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={retryGooglePlaces}
+                      className="ml-4 px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200 transition-colors"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                )}
+
+                {apiLoadError && apiKeyValid !== false && (
+                  <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center justify-between">
+                    <div className="flex items-center">
+                      <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+                      <div>
+                        <div>{apiLoadError}</div>
+                        <div className="text-xs mt-1">
+                          Check console for detailed debugging information.
+                        </div>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={retryGooglePlaces}
+                      className="ml-4 px-3 py-1 bg-red-100 text-red-700 rounded text-sm hover:bg-red-200 transition-colors"
+                    >
+                      Retry
+                    </button>
+                  </div>
+                )}
+
+                {/* Status Messages */}
+                {googleMapsLoading && (
+                  <div className="bg-blue-50 border border-blue-200 text-blue-700 px-4 py-3 rounded-lg flex items-center">
+                    <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-500 mr-2"></div>
+                    <span>Loading Google Places API...</span>
+                  </div>
+                )}
+
+                {!googleMapsLoading && !useGooglePlaces && !apiLoadError && apiKeyValid !== false && (
+                  <div className="bg-yellow-50 border border-yellow-200 text-yellow-700 px-4 py-3 rounded-lg flex items-center">
+                    <AlertCircle className="h-5 w-5 mr-2 flex-shrink-0" />
+                    <span>Google Places API not available. Using predefined city list.</span>
+                  </div>
+                )}
+
                 {/* Success Alert */}
                 {showSuccessAlert && (
                   <div className="fixed top-4 right-4 z-50 max-w-md animate-pulse">
@@ -438,32 +972,12 @@ function AddRestaurant() {
                     />
                   </div>
 
-                  {/* City */}
+                  {/* City with Google Places Integration */}
                   <div className="lg:col-span-2">
                     <label className="block text-sm font-medium text-thirdBlack mb-2">
                       City *
                     </label>
-                    <div className="relative">
-                      <select
-                        value={formData.city}
-                        onChange={(e) =>
-                          handleInputChange("city", e.target.value)
-                        }
-                        className="appearance-none w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
-                        disabled={isSubmitting}
-                        required
-                      >
-                        {cities.map((city) => (
-                          <option key={city} value={city}>
-                            {city}
-                          </option>
-                        ))}
-                      </select>
-                      <FaCaretDown
-                        size={20}
-                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#4BADE6] pointer-events-none"
-                      />
-                    </div>
+                    {renderCityInput()}
                   </div>
 
                   {/* Cuisine Type */}
