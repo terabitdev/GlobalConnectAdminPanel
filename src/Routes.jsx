@@ -9,8 +9,8 @@ import AddEvent from "./Components/EventManagement/AddEvent";
 import RestaurantManagement from "./Pages/RestaurantManagement";
 import AddRestaurant from "./Components/RestaurantManagement/AddRestaurant";
 import TipsManagement from "./Pages/TipsManagement";
-import PublicRoute from "./components/PublicRoute";
-import ProtectedRoute from "./components/ProtectedRoute";
+import PublicRoute from "./Components/PublicRoute";
+import ProtectedRoute from "./Components/ProtectedRoute";
 import { useParams } from "react-router-dom";
 import { doc, getDoc, updateDoc } from "firebase/firestore";
 
