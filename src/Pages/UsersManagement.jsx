@@ -8,10 +8,10 @@ import { collection, query, where, getDocs, doc, deleteDoc } from "firebase/fire
 
 function UsersManagement() {
   const [searchQuery, setSearchQuery] = useState("");
-  const [selectedCountry, setSelectedCountry] = useState("Country");
+  const [selectedCountry, setSelectedCountry] = useState("All Countries");
   const [activeMenuItem, setActiveMenuItem] = useState("Users");
   const [users, setUsers] = useState([]);
-  const [availableCountries, setAvailableCountries] = useState(["Country"]);
+  const [availableCountries, setAvailableCountries] = useState(["All Countries"]);
   const [loading, setLoading] = useState(true);
   const [isDeleting, setIsDeleting] = useState(false);
   const [deleteModal, setDeleteModal] = useState({ isOpen: false, userId: null, userName: "" });
@@ -60,7 +60,7 @@ function UsersManagement() {
           .filter(country => country !== "N/A")
         )].sort();
         
-        setAvailableCountries(["Country", ...uniqueCountries]);
+        setAvailableCountries(["All Countries", ...uniqueCountries]);
         setUsers(usersData);
       } catch (error) {
         console.error("Error fetching users:", error);
@@ -126,7 +126,7 @@ function UsersManagement() {
     (user) =>
       (user.name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
       user.email?.toLowerCase().includes(searchQuery.toLowerCase())) &&
-      (selectedCountry === "Country" || user.country === selectedCountry)
+      (selectedCountry === "All Countries" || user.country === selectedCountry)
   );
 
   // Function to truncate email for better display
