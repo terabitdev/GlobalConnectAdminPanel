@@ -1,6 +1,6 @@
 [
     {
-      "origin": ["*"],
+      "origin": ["https://global-connect-7c86b.web.app"],
       "method": ["GET"],
       "maxAgeSeconds": 3600,
       "responseHeader": ["Content-Type"]
