@@ -3,6 +3,9 @@ import { createUserWithEmailAndPassword } from "firebase/auth";
 import { doc, setDoc, serverTimestamp } from "firebase/firestore";
 import { auth, db } from "../firebase";
 
+
+//admin@globalconnect.com
+//AdminPassword123!
 // Admin credentials - Change these to your desired admin credentials
 const ADMIN_EMAIL = "admin@globalconnect.com";
 const ADMIN_PASSWORD = "AdminPassword123!"; // Use a strong password
