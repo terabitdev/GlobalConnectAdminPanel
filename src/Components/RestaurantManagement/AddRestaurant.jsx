@@ -56,7 +56,7 @@ function AddRestaurant() {
 
   // Fallback cities for when Google Places is not available
   const fallbackCities = ["Barcelona", "Madrid", "Valencia", "Seville", "Bilbao"];
-  const cuisineTypes = ["Select Cuisine", "Traditional Catalan", "Mediterranean", "Italian", "French", "Asian", "Mexican", "American", "Seafood", "Vegetarian"];
+  // Removed predefined cuisine types - now using free text input
   const priceRanges = [
     { symbol: "$", range: "$5-15", label: "$5-15" },
     { symbol: "$$", range: "$15-30", label: "$15-30" },
@@ -647,12 +647,21 @@ function AddRestaurant() {
           'delivery',
           'dine_in',
           'reservable',
-          'wheelchair_accessible_entrance'
+          'wheelchair_accessible_entrance',
+          'business_status',
+          'place_id'
         ]
       };
 
       service.getDetails(request, (place, status) => {
         if (status === window.google.maps.places.PlacesServiceStatus.OK) {
+          console.log('Place Details received:', {
+            name: place.name,
+            types: place.types,
+            serves_vegetarian_food: place.serves_vegetarian_food,
+            reviews_count: place.reviews ? place.reviews.length : 0,
+            editorial_summary: place.editorial_summary
+          });
           resolve(place);
         } else {
           console.error('Place Details request failed:', status);
@@ -674,35 +683,102 @@ function AddRestaurant() {
     return cityComponent ? cityComponent.long_name : '';
   };
 
+  // Extract cuisine from food items mentioned in reviews and description
+  const extractCuisineFromFoodItems = (foodItems) => {
+    const cuisineFoodMap = {
+      'Italian': ['pizza', 'pasta', 'risotto', 'lasagna', 'ravioli', 'gnocchi', 'carbonara', 'tiramisu', 'gelato', 'espresso', 'cappuccino', 'marinara', 'alfredo', 'parmigiana'],
+      'Asian': ['sushi', 'ramen', 'curry', 'noodles', 'rice', 'dim sum', 'pho', 'teriyaki', 'tempura', 'miso', 'tofu', 'dumplings', 'spring rolls', 'pad thai', 'kimchi', 'satay', 'lo mein', 'chow mein', 'egg roll'],
+      'Mexican': ['tacos', 'burrito', 'quesadilla', 'nachos', 'enchilada', 'guacamole', 'salsa', 'tortilla', 'fajita', 'chipotle', 'churros', 'tamale', 'tostada', 'refried beans'],
+      'American': ['burger', 'wings', 'ribs', 'steak', 'bbq', 'fries', 'hot dog', 'sandwich', 'pancakes', 'waffles', 'bacon', 'coleslaw', 'chicken', 'fried chicken', 'chicken tenders', 'chicken nuggets', 'mashed potatoes', 'mac and cheese', 'cornbread', 'biscuits'],
+      'Mediterranean': ['gyro', 'kebab', 'falafel', 'hummus', 'pita', 'tzatziki', 'baklava', 'moussaka', 'souvlaki', 'dolma', 'shawarma', 'tabbouleh'],
+      'Seafood': ['lobster', 'shrimp', 'salmon', 'tuna', 'crab', 'oysters', 'mussels', 'fish', 'calamari', 'ceviche', 'sashimi', 'fish and chips', 'clam', 'scallop'],
+      'French': ['croissant', 'baguette', 'crepe', 'quiche', 'ratatouille', 'coq au vin', 'escargot', 'souffle', 'foie gras', 'bouillabaisse', 'cassoulet'],
+      'Traditional Catalan': ['paella', 'tapas', 'gazpacho', 'jamón', 'tortilla española', 'croquetas', 'patatas bravas', 'sangria', 'pan con tomate']
+    };
+    
+    const cuisineScores = {};
+    
+    // Count matches for each cuisine
+    for (const [cuisine, foods] of Object.entries(cuisineFoodMap)) {
+      cuisineScores[cuisine] = 0;
+      for (const food of foods) {
+        if (foodItems.some(item => item.toLowerCase().includes(food))) {
+          cuisineScores[cuisine]++;
+        }
+      }
+    }
+    
+    // Find cuisine with highest score
+    let maxScore = 0;
+    let detectedCuisine = '';
+    
+    for (const [cuisine, score] of Object.entries(cuisineScores)) {
+      if (score > maxScore) {
+        maxScore = score;
+        detectedCuisine = cuisine;
+      }
+    }
+    
+    console.log('Cuisine scores from food items:', cuisineScores);
+    
+    // For American cuisine with common items like chicken/burger, require only 1 match
+    if (detectedCuisine === 'American' && maxScore >= 1) {
+      return detectedCuisine;
+    }
+    
+    // For other cuisines, require at least 2 matching foods
+    return maxScore >= 2 ? detectedCuisine : '';
+  };
+
   // Determine cuisine type from place types and other data
   const determineCuisineFromTypes = (types, placeData) => {
     console.log('Determining cuisine from types:', types, 'and place data:', placeData);
     
     const cuisineMap = {
+      // Asian cuisines
       'chinese_restaurant': 'Asian',
       'japanese_restaurant': 'Asian',
       'korean_restaurant': 'Asian',
       'thai_restaurant': 'Asian',
       'vietnamese_restaurant': 'Asian',
       'indian_restaurant': 'Asian',
+      'sushi_restaurant': 'Asian',
+      'ramen_restaurant': 'Asian',
+      'noodle_house': 'Asian',
+      // European cuisines
       'italian_restaurant': 'Italian',
       'french_restaurant': 'French',
-      'mexican_restaurant': 'Mexican',
+      'pizza_restaurant': 'Italian',
       'spanish_restaurant': 'Mediterranean',
       'greek_restaurant': 'Mediterranean',
-      'seafood_restaurant': 'Seafood',
-      'vegetarian_restaurant': 'Vegetarian',
-      'american_restaurant': 'American',
       'turkish_restaurant': 'Mediterranean',
       'lebanese_restaurant': 'Mediterranean',
-      'pizza_restaurant': 'Italian',
-      'sushi_restaurant': 'Asian',
+      'mediterranean_restaurant': 'Mediterranean',
+      // American cuisines
+      'american_restaurant': 'American',
       'barbecue_restaurant': 'American',
       'steak_house': 'American',
-      'meal_takeaway': '', // Don't map this to any cuisine
-      'meal_delivery': '', // Don't map this to any cuisine
-      'restaurant': '', // Generic restaurant type, check name instead
-      'food': '' // Generic food type, check name instead
+      'hamburger_restaurant': 'American',
+      'fast_food_restaurant': 'American',
+      'diner': 'American',
+      // Mexican
+      'mexican_restaurant': 'Mexican',
+      'taco_stand': 'Mexican',
+      'tex_mex_restaurant': 'Mexican',
+      // Seafood
+      'seafood_restaurant': 'Seafood',
+      'fish_and_chips_restaurant': 'Seafood',
+      // Vegetarian
+      'vegetarian_restaurant': 'Vegetarian',
+      'vegan_restaurant': 'Vegetarian',
+      // Traditional Catalan (for Barcelona area)
+      'catalan_restaurant': 'Traditional Catalan',
+      // Generic types - don't map to cuisine
+      'meal_takeaway': '',
+      'meal_delivery': '',
+      'restaurant': '',
+      'food': '',
+      'establishment': ''
     };
 
     // First check for specific restaurant types
@@ -724,20 +800,101 @@ function AddRestaurant() {
       const name = placeData.name ? placeData.name.toLowerCase() : '';
       console.log('Analyzing restaurant name for cuisine:', name);
       
-      // Look for cuisine keywords in the name
-      if (name.includes('pizza') || name.includes('italian') || name.includes('italy')) return 'Italian';
-      if (name.includes('chinese') || name.includes('asian') || name.includes('sushi') || name.includes('thai') || name.includes('japanese')) return 'Asian';
-      if (name.includes('mexican') || name.includes('taco') || name.includes('burrito') || name.includes('tex-mex')) return 'Mexican';
-      if (name.includes('french') || name.includes('bistro') || name.includes('brasserie')) return 'French';
-      if (name.includes('mediterranean') || name.includes('greek') || name.includes('turkish')) return 'Mediterranean';
-      if (name.includes('seafood') || name.includes('fish') || name.includes('lobster') || name.includes('crab')) return 'Seafood';
-      if (name.includes('bbq') || name.includes('grill') || name.includes('steakhouse') || name.includes('burger')) return 'American';
-      if (name.includes('indian') || name.includes('curry')) return 'Asian';
-      if (name.includes('vegetarian') || name.includes('vegan')) return 'Vegetarian';
+      // Enhanced cuisine keywords detection in restaurant name
+      const cuisineKeywords = {
+        'Italian': ['pizza', 'italian', 'italy', 'pasta', 'trattoria', 'osteria', 'ristorante', 'pizzeria', 'gelato', 'domino'],
+        'Asian': ['chinese', 'asian', 'sushi', 'thai', 'japanese', 'korean', 'vietnamese', 'indian', 'curry', 'ramen', 'noodle', 'wok', 'dim sum', 'pho', 'teriyaki', 'tempura', 'panda express'],
+        'Mexican': ['mexican', 'taco', 'burrito', 'tex-mex', 'cantina', 'hacienda', 'casa', 'el ', 'la ', 'tortilla', 'quesadilla', 'enchilada', 'chipotle', 'taco bell'],
+        'French': ['french', 'bistro', 'brasserie', 'cafe', 'patisserie', 'boulangerie', 'crêpe', 'crepe'],
+        'Mediterranean': ['mediterranean', 'greek', 'turkish', 'lebanese', 'middle eastern', 'mezze', 'gyro', 'kebab', 'falafel', 'hummus'],
+        'Seafood': ['seafood', 'fish', 'lobster', 'crab', 'oyster', 'shrimp', 'salmon', 'tuna', 'catch', 'dock', 'pier', 'captain d', 'long john silver'],
+        'American': ['bbq', 'grill', 'steakhouse', 'burger', 'diner', 'american', 'wings', 'ribs', 'barbecue', 'smokehouse', 'kfc', 'kentucky', 'mcdonald', 'wendy', 'burger king', 'subway', 'arby', 'carl', 'hardee', 'popeye', 'chick-fil-a', 'chicken', 'fried'],
+        'Vegetarian': ['vegetarian', 'vegan', 'plant', 'green', 'organic', 'natural', 'salad'],
+        'Traditional Catalan': ['catalan', 'catalonia', 'barcelona', 'tapas', 'paella']
+      };
+      
+      for (const [cuisine, keywords] of Object.entries(cuisineKeywords)) {
+        for (const keyword of keywords) {
+          if (name.includes(keyword)) {
+            console.log(`Found cuisine ${cuisine} from keyword: ${keyword}`);
+            return cuisine;
+          }
+        }
+      }
     }
     
-    console.log('No cuisine found, returning empty');
+    // If still no cuisine found, try to extract from reviews
+    if (placeData.reviews && placeData.reviews.length > 0) {
+      console.log('Trying to extract cuisine from reviews...');
+      const foodItems = [];
+      
+      // Extract food mentions from reviews
+      placeData.reviews.slice(0, 5).forEach(review => {
+        if (review.text) {
+          const text = review.text.toLowerCase();
+          // Common food items that might indicate cuisine
+          const foodPatterns = [
+            /\b(pizza|pasta|risotto|lasagna|ravioli|gnocchi|carbonara|tiramisu|gelato)\b/g,
+            /\b(sushi|ramen|curry|noodles|dim sum|pho|teriyaki|tempura|pad thai)\b/g,
+            /\b(tacos|burrito|quesadilla|nachos|enchilada|fajita|chipotle)\b/g,
+            /\b(burger|wings|ribs|steak|bbq|hot dog|sandwich)\b/g,
+            /\b(gyro|kebab|falafel|hummus|pita|tzatziki|baklava)\b/g,
+            /\b(lobster|shrimp|salmon|tuna|crab|oysters|calamari)\b/g,
+            /\b(croissant|baguette|crepe|quiche|escargot)\b/g,
+            /\b(paella|tapas|gazpacho|jamón|croquetas|sangria)\b/g
+          ];
+          
+          foodPatterns.forEach(pattern => {
+            const matches = text.match(pattern);
+            if (matches) {
+              foodItems.push(...matches);
+            }
+          });
+        }
+      });
+      
+      if (foodItems.length > 0) {
+        const cuisineFromFood = extractCuisineFromFoodItems(foodItems);
+        if (cuisineFromFood) {
+          console.log('Found cuisine from food items in reviews:', cuisineFromFood);
+          return cuisineFromFood;
+        }
+      }
+    }
+    
+    // Try editorial summary if available
+    if (placeData.editorial_summary && placeData.editorial_summary.overview) {
+      const summary = placeData.editorial_summary.overview.toLowerCase();
+      const cuisineFromSummary = extractCuisineFromText(summary);
+      if (cuisineFromSummary) {
+        console.log('Found cuisine from editorial summary:', cuisineFromSummary);
+        return cuisineFromSummary;
+      }
+    }
+    
+    console.log('No cuisine found after all attempts');
     return ''; // Return empty if no specific cuisine found
+  };
+  
+  // Helper function to extract cuisine from text
+  const extractCuisineFromText = (text) => {
+    const cuisinePatterns = {
+      'Italian': /\b(italian|italy|romano|tuscan|sicilian)\b/i,
+      'Asian': /\b(asian|chinese|japanese|thai|vietnamese|korean|indian)\b/i,
+      'Mexican': /\b(mexican|tex-mex|latin|spanish)\b/i,
+      'French': /\b(french|parisian|provence|bistro)\b/i,
+      'Mediterranean': /\b(mediterranean|greek|turkish|lebanese|middle eastern)\b/i,
+      'American': /\b(american|southern|bbq|barbecue|steakhouse)\b/i,
+      'Seafood': /\b(seafood|fish|sushi|maritime|coastal)\b/i,
+      'Traditional Catalan': /\b(catalan|catalonian|barcelona|spanish)\b/i
+    };
+    
+    for (const [cuisine, pattern] of Object.entries(cuisinePatterns)) {
+      if (pattern.test(text)) {
+        return cuisine;
+      }
+    }
+    return '';
   };
 
   // Extract actual price information from place data
@@ -1113,6 +1270,57 @@ function AddRestaurant() {
           try {
             cuisine = determineCuisineFromTypes(placeDetails.types || [], placeDetails);
             console.log('Cuisine extracted:', cuisine);
+            
+            // If no cuisine found from types, try to extract from description/reviews
+            if (!cuisine && placeDetails) {
+              console.log('No cuisine from types, checking other sources...');
+              
+              // First check the generated description for food items
+              if (description) {
+                console.log('Checking description for cuisine clues:', description);
+                
+                // Extract food items from description
+                const foodPattern = /\b(pizza|pasta|burger|chicken|fried chicken|wings|tacos|sushi|noodles|rice|sandwich|steak|seafood|fish|salad|fries|hot dog)\b/gi;
+                const foodMatches = description.match(foodPattern);
+                
+                if (foodMatches && foodMatches.length > 0) {
+                  console.log('Food items found in description:', foodMatches);
+                  const cuisineFromFood = extractCuisineFromFoodItems(foodMatches);
+                  if (cuisineFromFood) {
+                    cuisine = cuisineFromFood;
+                    console.log('Detected cuisine from description food items:', cuisine);
+                  }
+                }
+                
+                // Also try text-based detection
+                if (!cuisine) {
+                  const descCuisine = extractCuisineFromText(description.toLowerCase());
+                  if (descCuisine) {
+                    cuisine = descCuisine;
+                    console.log('Found cuisine from description text:', cuisine);
+                  }
+                }
+              }
+              
+              // If still no cuisine and name contains KFC or similar brands
+              if (!cuisine && placeDetails.name) {
+                const nameLower = placeDetails.name.toLowerCase();
+                const fastFoodBrands = {
+                  'American': ['kfc', 'kentucky fried chicken', 'mcdonald', 'burger king', 'wendy', 'subway', 'arby', 'carl\'s jr', 'hardee', 'popeye', 'chick-fil-a', 'five guys', 'in-n-out', 'shake shack'],
+                  'Mexican': ['taco bell', 'chipotle', 'qdoba', 'del taco', 'el pollo loco'],
+                  'Italian': ['domino', 'pizza hut', 'papa john', 'little caesar'],
+                  'Asian': ['panda express', 'pei wei', 'pick up stix']
+                };
+                
+                for (const [cuisineType, brands] of Object.entries(fastFoodBrands)) {
+                  if (brands.some(brand => nameLower.includes(brand))) {
+                    cuisine = cuisineType;
+                    console.log(`Detected ${cuisineType} cuisine from brand name: ${placeDetails.name}`);
+                    break;
+                  }
+                }
+              }
+            }
           } catch (error) {
             console.error('Error extracting cuisine:', error);
           }
@@ -1139,7 +1347,7 @@ function AddRestaurant() {
               restaurantName: placeDetails.name || suggestion.mainText,
               address: placeDetails.formatted_address || placeDetails.vicinity || prev.address,
               phoneNumber: placeDetails.formatted_phone_number || prev.phoneNumber,
-              // Auto-fill these fields even if current form has values, but only if API provides data
+              // Auto-fill these fields only if API provides valid data
               city: city ? city : prev.city,
               cuisineType: cuisine ? cuisine : prev.cuisineType,
               priceRange: priceRange ? priceRange : prev.priceRange,
@@ -1630,8 +1838,8 @@ function AddRestaurant() {
         return;
       }
 
-      if (formData.cuisineType === 'Select Cuisine') {
-        setError('Please select a cuisine type');
+      if (!formData.cuisineType || formData.cuisineType.trim() === '') {
+        setError('Please enter a cuisine type');
         setIsSubmitting(false);
         return;
       }
@@ -1969,27 +2177,17 @@ function AddRestaurant() {
                     <label className="block text-sm font-medium text-thirdBlack mb-2">
                       Cuisine Type *
                     </label>
-                    <div className="relative">
-                      <select
-                        value={formData.cuisineType}
-                        onChange={(e) =>
-                          handleInputChange("cuisineType", e.target.value)
-                        }
-                        className="appearance-none w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
-                        disabled={isSubmitting}
-                        required
-                      >
-                        {cuisineTypes.map((type) => (
-                          <option key={type} value={type}>
-                            {type}
-                          </option>
-                        ))}
-                      </select>
-                      <FaCaretDown
-                        size={20}
-                        className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#4BADE6] pointer-events-none"
-                      />
-                    </div>
+                    <input
+                      type="text"
+                      value={formData.cuisineType}
+                      onChange={(e) =>
+                        handleInputChange("cuisineType", e.target.value)
+                      }
+                      placeholder="e.g., Italian, Asian, Mexican, Mediterranean"
+                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-black placeholder:text-grayModern"
+                      disabled={isSubmitting}
+                      required
+                    />
                   </div>
 
                   {/* Featured Restaurant */}
