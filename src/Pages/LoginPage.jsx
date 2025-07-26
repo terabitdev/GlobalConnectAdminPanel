@@ -440,12 +440,12 @@ function LoginPage() {
 
         {/* Main Content */}
         <div className="relative flex flex-col items-center justify-between h-full text-white p-4 lg:p-0">
-          {/* Logo and Title */}
-          <div className="text-center w-full max-w-[18rem] sm:max-w-[22rem] h-auto lg:h-full flex items-center justify-center py-8 lg:py-0">
+         {/* Logo and Title */}
+         <div className="text-center w-full max-w-[18rem] sm:max-w-[22rem] lg:max-w-[24rem] 2xl:max-w-[32rem] h-auto flex items-center justify-center py-8 lg:py-12 2xl:py-16">
             <img
               src="/assets/logo.svg"
               alt="logo"
-              className="w-full h-auto max-h-32 sm:max-h-40 lg:max-h-none lg:h-full object-contain lg:object-cover 2xl:h-[14rem] 2xl:w-[40rem]"
+              className="w-full h-auto max-h-32 sm:max-h-40 lg:max-h-48 2xl:max-h-64 object-contain"
             />
           </div>
 
