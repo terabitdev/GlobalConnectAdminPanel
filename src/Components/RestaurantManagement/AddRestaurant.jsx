@@ -35,6 +35,13 @@ function AddRestaurant() {
   const cityInputRef = useRef();
   const autocompleteSessionTokenRef = useRef(null);
 
+  // Restaurant name autocomplete states
+  const [restaurantSuggestions, setRestaurantSuggestions] = useState([]);
+  const [showRestaurantSuggestions, setShowRestaurantSuggestions] = useState(false);
+  const [restaurantSuggestionLoading, setRestaurantSuggestionLoading] = useState(false);
+  const restaurantInputRef = useRef();
+  const restaurantSessionTokenRef = useRef(null);
+
   const [formData, setFormData] = useState({
     restaurantName: '',
     city: '',
@@ -198,6 +205,7 @@ function AddRestaurant() {
                 // Initialize autocomplete session token for legacy API if available
                 if (window.google.maps.places.AutocompleteSessionToken) {
                   autocompleteSessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
+                  restaurantSessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
                 }
                 setUseGooglePlaces(true);
                 setApiKeyValid(true);
@@ -240,6 +248,133 @@ function AddRestaurant() {
 
     loadGoogleMapsScript();
   }, []);
+
+  // Helper function for restaurant autocomplete legacy API fallback
+  const fallbackToRestaurantLegacyAPI = (input) => {
+    try {
+      console.log('Using legacy AutocompleteService API for restaurants');
+      
+      const request = {
+        input: input,
+        types: ['establishment'],
+        sessionToken: restaurantSessionTokenRef.current,
+      };
+
+      const service = new window.google.maps.places.AutocompleteService();
+      
+      service.getPlacePredictions(request, (predictions, status) => {
+        setRestaurantSuggestionLoading(false);
+        
+        if (status === window.google.maps.places.PlacesServiceStatus.OK && predictions) {
+          // Filter for restaurants only
+          const restaurantPredictions = predictions.filter(prediction => 
+            prediction.types.includes('restaurant') || 
+            prediction.types.includes('food') ||
+            prediction.types.includes('meal_takeaway') ||
+            prediction.types.includes('meal_delivery')
+          );
+          
+          const suggestions = restaurantPredictions.map(prediction => ({
+            placeId: prediction.place_id,
+            mainText: prediction.structured_formatting.main_text,
+            secondaryText: prediction.structured_formatting.secondary_text || '',
+            description: prediction.description,
+          }));
+          setRestaurantSuggestions(suggestions);
+          setApiKeyValid(true);
+        } else if (status === window.google.maps.places.PlacesServiceStatus.REQUEST_DENIED) {
+          console.error('Restaurant AutocompleteService request denied - likely API key issue');
+          setApiKeyValid(false);
+          setApiLoadError("Google Places API request denied. Check your API key permissions.");
+          setUseGooglePlaces(false);
+          setRestaurantSuggestions([]);
+        } else {
+          console.error('Restaurant AutocompleteService error:', status);
+          setRestaurantSuggestions([]);
+        }
+      });
+    } catch (error) {
+      console.error('Restaurant Legacy API fallback error:', error);
+      setRestaurantSuggestionLoading(false);
+      setRestaurantSuggestions([]);
+    }
+  };
+
+  // Enhanced searchRestaurants function
+  const searchRestaurants = async (input) => {
+    if (!useGooglePlaces || !window.google || !input.trim()) {
+      setRestaurantSuggestions([]);
+      return;
+    }
+
+    setRestaurantSuggestionLoading(true);
+    
+    try {
+      // Try to use the new AutocompleteSuggestion API first
+      if (window.google.maps.places.AutocompleteSuggestion) {
+        console.log('Using new AutocompleteSuggestion API for restaurants');
+        
+        const request = {
+          input: input,
+          includedPrimaryTypes: ['restaurant'],
+          language: 'en',
+          region: 'GLOBAL'
+        };
+
+        try {
+          const { suggestions } = await window.google.maps.places.AutocompleteSuggestion.fetchAutocompleteSuggestions(request);
+          
+          setRestaurantSuggestionLoading(false);
+          
+          if (suggestions && suggestions.length > 0) {
+            const formattedSuggestions = suggestions.map(suggestion => ({
+              placeId: suggestion.placePrediction.placeId,
+              mainText: suggestion.placePrediction.structuredFormat.mainText.text,
+              secondaryText: suggestion.placePrediction.structuredFormat.secondaryText?.text || '',
+              description: suggestion.placePrediction.text.text,
+            }));
+            setRestaurantSuggestions(formattedSuggestions);
+            setApiKeyValid(true);
+          } else {
+            setRestaurantSuggestions([]);
+          }
+        } catch (apiError) {
+          console.error('Restaurant AutocompleteSuggestion API Error:', apiError);
+          setRestaurantSuggestionLoading(false);
+          
+          // Check if it's an API key error
+          if (apiError.message && apiError.message.includes('API key')) {
+            setApiKeyValid(false);
+            setApiLoadError(`API Key Error: ${apiError.message}`);
+            setUseGooglePlaces(false);
+          } else {
+            // Try fallback to legacy API
+            console.log('Falling back to legacy AutocompleteService API for restaurants due to error');
+            fallbackToRestaurantLegacyAPI(input);
+          }
+        }
+          
+      } else if (window.google.maps.places.AutocompleteService) {
+        fallbackToRestaurantLegacyAPI(input);
+      } else {
+        console.error('No available Google Places autocomplete service for restaurants');
+        setRestaurantSuggestionLoading(false);
+        setRestaurantSuggestions([]);
+      }
+      
+    } catch (error) {
+      console.error('Error in searchRestaurants:', error);
+      setRestaurantSuggestionLoading(false);
+      setRestaurantSuggestions([]);
+      
+      // Check if it's an API key error
+      if (error.message && error.message.includes('API key')) {
+        setApiKeyValid(false);
+        setApiLoadError(`API Key Error: ${error.message}`);
+        setUseGooglePlaces(false);
+      }
+    }
+  };
 
   // Enhanced searchCities function
   const searchCities = async (input) => {
@@ -317,7 +452,7 @@ function AddRestaurant() {
     }
   };
 
-  // Debounce search
+  // Debounce search for cities
   useEffect(() => {
     const timer = setTimeout(() => {
       if (formData.city && useGooglePlaces) {
@@ -329,6 +464,19 @@ function AddRestaurant() {
 
     return () => clearTimeout(timer);
   }, [formData.city, useGooglePlaces]);
+
+  // Debounce search for restaurants
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (formData.restaurantName && useGooglePlaces) {
+        searchRestaurants(formData.restaurantName);
+      } else {
+        setRestaurantSuggestions([]);
+      }
+    }, 300);
+
+    return () => clearTimeout(timer);
+  }, [formData.restaurantName, useGooglePlaces]);
 
   // Enhanced retry function
   const retryGooglePlaces = async () => {
@@ -419,6 +567,118 @@ function AddRestaurant() {
     if (citySuggestions.length > 0) {
       setShowSuggestions(true);
     }
+  };
+
+  // Restaurant name handlers
+  const handleRestaurantNameChange = (e) => {
+    const value = e.target.value;
+    setFormData(prev => ({ ...prev, restaurantName: value }));
+    setShowRestaurantSuggestions(true);
+  };
+
+  // Handle restaurant suggestion selection
+  const handleRestaurantSelect = (suggestion) => {
+    setFormData(prev => ({ ...prev, restaurantName: suggestion.mainText }));
+    setRestaurantSuggestions([]);
+    setShowRestaurantSuggestions(false);
+    
+    // Create new session token for next search (legacy API)
+    if (window.google && window.google.maps && window.google.maps.places && window.google.maps.places.AutocompleteSessionToken) {
+      restaurantSessionTokenRef.current = new window.google.maps.places.AutocompleteSessionToken();
+    }
+  };
+
+  // Hide restaurant suggestions when clicking outside
+  const handleRestaurantInputBlur = () => {
+    // Delay hiding to allow suggestion click
+    setTimeout(() => {
+      setShowRestaurantSuggestions(false);
+    }, 200);
+  };
+
+  // Show restaurant suggestions when focusing input
+  const handleRestaurantInputFocus = () => {
+    if (restaurantSuggestions.length > 0) {
+      setShowRestaurantSuggestions(true);
+    }
+  };
+
+  // Render restaurant name input with Google Places integration
+  const renderRestaurantNameInput = () => {
+    if (googleMapsLoading) {
+      return (
+        <div className="relative">
+          <input
+            type="text"
+            value={formData.restaurantName}
+            disabled
+            placeholder="Loading Google Places..."
+            className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg bg-gray-100 font-PlusJakartaSans text-gray-500"
+          />
+          <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
+            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#4BADE6]"></div>
+          </div>
+        </div>
+      );
+    }
+
+    if (useGooglePlaces) {
+      return (
+        <div className="relative">
+          <input
+            ref={restaurantInputRef}
+            type="text"
+            value={formData.restaurantName}
+            onChange={handleRestaurantNameChange}
+            onFocus={handleRestaurantInputFocus}
+            onBlur={handleRestaurantInputBlur}
+            placeholder="Search for a restaurant or enter manually..."
+            className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-black placeholder:text-grayModern"
+            disabled={isSubmitting}
+            required
+          />
+          <FaCaretDown
+            size={20}
+            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-[#4BADE6] pointer-events-none"
+          />
+          
+          {/* Restaurant suggestions dropdown */}
+          {showRestaurantSuggestions && restaurantSuggestions.length > 0 && (
+            <div className="absolute left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 mt-1 max-h-56 overflow-y-auto">
+              {restaurantSuggestionLoading && (
+                <div className="px-4 py-2 text-gray-500 flex items-center">
+                  <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#4BADE6] mr-2"></div>
+                  Loading restaurants...
+                </div>
+              )}
+              {restaurantSuggestions.map((suggestion) => (
+                <div
+                  key={suggestion.placeId}
+                  onClick={() => handleRestaurantSelect(suggestion)}
+                  className="px-4 py-2 cursor-pointer text-gray-800 hover:bg-blue-50"
+                >
+                  <div className="font-medium">{suggestion.mainText}</div>
+                  <div className="text-sm text-gray-500">{suggestion.secondaryText}</div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    }
+
+    // Fallback: regular input when Google Places is not available
+    return (
+      <input
+        type="text"
+        value={formData.restaurantName}
+        onChange={(e) => setFormData(prev => ({ ...prev, restaurantName: e.target.value }))}
+        placeholder="Enter restaurant name"
+        className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-black placeholder:text-grayModern"
+        disabled={isSubmitting}
+        required
+      />
+    );
   };
 
   // Render city input with Google Places integration
@@ -959,17 +1219,7 @@ function AddRestaurant() {
                     <label className="block text-sm font-medium text-thirdBlack mb-2">
                       Restaurant Name *
                     </label>
-                    <input
-                      type="text"
-                      value={formData.restaurantName}
-                      onChange={(e) =>
-                        handleInputChange("restaurantName", e.target.value)
-                      }
-                      placeholder="Enter restaurant name"
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans "
-                      disabled={isSubmitting}
-                      required
-                    />
+                    {renderRestaurantNameInput()}
                   </div>
 
                   {/* City with Google Places Integration */}
