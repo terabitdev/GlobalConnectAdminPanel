@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from "react";
 import { Camera, Menu, ArrowLeft, X, CheckCircle, AlertCircle } from "lucide-react";
 import { useNavigate, useParams } from "react-router-dom";
@@ -54,7 +55,9 @@ function AddRestaurant() {
     description: '',
     priceRange: '',
     rating: 0,
-    totalReviews: 0
+    totalReviews: 0,
+    latitude: null,
+    longitude: null
   });
 
   // Fallback cities for when Google Places is not available
@@ -73,6 +76,42 @@ function AddRestaurant() {
   const [successMessage, setSuccessMessage] = useState("");
   const [autoFillMessage, setAutoFillMessage] = useState("");
   const [showAutoFillAlert, setShowAutoFillAlert] = useState(false);
+  const [geocodingLoading, setGeocodingLoading] = useState(false);
+  const geocodingTimeoutRef = useRef(null);
+
+  // Geocoding function to get coordinates from address
+  const geocodeAddress = async (address) => {
+    if (!address || !address.trim()) {
+      return null;
+    }
+
+    try {
+      setGeocodingLoading(true);
+      
+      // Use Google Geocoding API
+      const response = await fetch(
+        `https://maps.googleapis.com/maps/api/geocode/json?address=${encodeURIComponent(address)}&key=${GOOGLE_MAPS_API_KEY}`
+      );
+      
+      const data = await response.json();
+      
+      if (data.status === 'OK' && data.results.length > 0) {
+        const location = data.results[0].geometry.location;
+        return {
+          latitude: location.lat,
+          longitude: location.lng
+        };
+      } else {
+        console.warn('Geocoding failed:', data.status, data.error_message);
+        return null;
+      }
+    } catch (error) {
+      console.error('Geocoding error:', error);
+      return null;
+    } finally {
+      setGeocodingLoading(false);
+    }
+  };
 
   // Helper function for legacy API fallback
   const fallbackToLegacyAPI = (input) => {
@@ -1916,7 +1955,9 @@ function AddRestaurant() {
               description: data.description || "",
               priceRange: data.priceRange || "",
               rating: data.rating || 0,
-              totalReviews: data.totalReviews || 0
+              totalReviews: data.totalReviews || 0,
+              latitude: data.latitude || null,
+              longitude: data.longitude || null
             });
             if (data.images && data.images.length > 0) {
               setSelectedImages(
@@ -1939,11 +1980,44 @@ function AddRestaurant() {
     }
   }, [restaurantId, isEditMode]);
 
+  // Cleanup timeout on unmount
+  useEffect(() => {
+    return () => {
+      if (geocodingTimeoutRef.current) {
+        clearTimeout(geocodingTimeoutRef.current);
+      }
+    };
+  }, []);
+
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
+
+    // Auto-geocode address when it changes
+    if (field === 'address' && value && value.trim()) {
+      // Clear previous timeout
+      if (geocodingTimeoutRef.current) {
+        clearTimeout(geocodingTimeoutRef.current);
+      }
+      
+      // Add a small delay to avoid too many API calls while typing
+      geocodingTimeoutRef.current = setTimeout(async () => {
+        const coordinates = await geocodeAddress(value.trim());
+        if (coordinates) {
+          setFormData(prev => ({
+            ...prev,
+            latitude: coordinates.latitude,
+            longitude: coordinates.longitude
+          }));
+          console.log('Auto-geocoded coordinates:', coordinates);
+          setAutoFillMessage(`Address geocoded successfully! Coordinates: ${coordinates.latitude.toFixed(6)}, ${coordinates.longitude.toFixed(6)}`);
+          setShowAutoFillAlert(true);
+          setTimeout(() => setShowAutoFillAlert(false), 3000);
+        }
+      }, 1000); // 1 second delay
+    }
   };
 
   const handleMenuItemClick = (itemName) => {
@@ -2063,6 +2137,17 @@ function AddRestaurant() {
         return;
       }
 
+      // Geocode the address to get coordinates
+      let coordinates = null;
+      if (formData.address && formData.address.trim()) {
+        coordinates = await geocodeAddress(formData.address.trim());
+        if (coordinates) {
+          console.log('Geocoded coordinates:', coordinates);
+        } else {
+          console.warn('Failed to geocode address:', formData.address);
+        }
+      }
+
       let imageUrls = [];
       
       // Handle image uploads for new images (both user uploaded and successfully converted Google images)
@@ -2096,6 +2181,8 @@ function AddRestaurant() {
           images: allImages,
           rating: formData.rating || 0,
           totalReviews: formData.totalReviews || 0,
+          latitude: coordinates?.latitude || null,
+          longitude: coordinates?.longitude || null,
           updatedAt: serverTimestamp(),
         };
 
@@ -2117,6 +2204,8 @@ function AddRestaurant() {
           images: allNewImages,
           rating: formData.rating || 0,
           totalReviews: formData.totalReviews || 0,
+          latitude: coordinates?.latitude || null,
+          longitude: coordinates?.longitude || null,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           createdByEmail: user?.email || '',
@@ -2136,7 +2225,9 @@ function AddRestaurant() {
           description: '',
           priceRange: '',
           rating: 0,
-          totalReviews: 0
+          totalReviews: 0,
+          latitude: null,
+          longitude: null
         });
         setSelectedImages([]);
       }
@@ -2571,7 +2662,22 @@ function AddRestaurant() {
                         className="w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#4BADE6] focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans "
                         disabled={isSubmitting}
                       />
+                      {geocodingLoading && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#4BADE6]"></div>
+                        </div>
+                      )}
+                      {formData.latitude && formData.longitude && !geocodingLoading && (
+                        <div className="absolute right-3 top-1/2 transform -translate-y-1/2">
+                          <CheckCircle className="h-4 w-4 text-green-500" />
+                        </div>
+                      )}
                     </div>
+                    {formData.latitude && formData.longitude && (
+                      <p className="text-xs text-green-600 mt-1">
+                        ✓ Coordinates: {formData.latitude.toFixed(6)}, {formData.longitude.toFixed(6)}
+                      </p>
+                    )}
                   </div>
 
                   {/* Description */}
