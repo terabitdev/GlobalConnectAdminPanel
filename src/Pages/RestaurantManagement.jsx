@@ -84,7 +84,24 @@ function RestaurantManagement() {
     // Category filter
     const matchesCategory =
       selectedCategory === "All Categories" || restaurant.cuisine === selectedCategory;
-    return matchesSearch && matchesCity && matchesCategory;
+    // Rating filter
+    const matchesRating = (() => {
+      if (selectedRating === "All Ratings") return true;
+      const rating = restaurant.rating || 0;
+      switch (selectedRating) {
+        case "5 Stars":
+          return rating >= 4.5;
+        case "4+ Stars":
+          return rating >= 4.0;
+        case "3+ Stars":
+          return rating >= 3.0;
+        case "2+ Stars":
+          return rating >= 2.0;
+        default:
+          return true;
+      }
+    })();
+    return matchesSearch && matchesCity && matchesCategory && matchesRating;
   });
 
   // Fetch restaurants from Firebase
@@ -120,9 +137,10 @@ function RestaurantManagement() {
           featured: data.featuredRestaurant === true,
           priceRange: data.priceRange || "",
           phoneNumber: data.phoneNumber || "",
+          rating: data.rating || 0,
+          totalReviews: data.totalReviews || 0,
           createdAt: data.createdAt,
           createdByEmail: data.createdByEmail || "",
-          // Add more fields as needed
         });
       });
       setRestaurants(restaurantsData);
@@ -185,14 +203,29 @@ function RestaurantManagement() {
               <MapPin size={12} className="mr-1" />
               <span>{restaurant.address}</span>
             </div>
-            <div className="flex items-center">
-              <span className="text-sm font-medium">{restaurant.cuisine}</span>
-            </div>
+            {/* Rating and Reviews */}
+            {(restaurant.rating > 0 || restaurant.totalReviews > 0) && (
+              <div className="flex items-center text-sm text-gray-600">
+                {restaurant.rating > 0 && (
+                  <>
+                    <FaStar size={12} className="text-yellow-500 mr-1" />
+                    <span className="font-medium mr-2">{restaurant.rating.toFixed(1)}</span>
+                  </>
+                )}
+                {restaurant.totalReviews > 0 && (
+                  <span className="text-gray-500">
+                    ({restaurant.totalReviews} review{restaurant.totalReviews !== 1 ? 's' : ''})
+                  </span>
+                )}
+              </div>
+            )}
             {/* Added by Admin */}
-            <div className="flex items-center text-xs text-gray-500 mt-1">
-              Added by Admin: <span className="ml-1 font-semibold">{restaurant.createdByEmail || "Unknown"}</span>
+            <div className="flex items-center text-sm text-gray-600 mt-1">
+              <span className="text-gray-600">•</span>
+              <span className="ml-2 font-medium">Added by Admin: {restaurant.createdByEmail || "Unknown"}</span>
+              <span className="ml-2 text-gray-600">•</span>
+              <span className="ml-2 font-medium">{restaurant.cuisine}</span>
             </div>
-            {/* Add more fields as needed */}
           </div>
         </div>
       </div>
@@ -275,16 +308,30 @@ function RestaurantManagement() {
             <div className="flex items-center space-x-2 text-black font-WorkSansMedium mb-1">
               <img src="/assets/location.svg" className="w-4 h-4" />
               <span className="text-sm">{restaurant.address}</span>
-              <span className="text-sm font-medium"> • {restaurant.cuisine}</span>
             </div>
             
             {/* Rating */}
             <div className="flex items-center mb-3">
-              <div className="flex space-x-1 mr-2">
-                <FaStar size={14} className="text-yellow-500" />
-              </div>
-              <span className="text-sm text-black font-WorkSansMedium">
-                {restaurant.rating} • {restaurant.reviewCount} reviews • Added by {restaurant.createdByEmail}
+              {(restaurant.rating > 0 || restaurant.totalReviews > 0) && (
+                <div className="flex items-center mr-4">
+                  {restaurant.rating > 0 && (
+                    <>
+                      <FaStar size={14} className="text-yellow-500 mr-1" />
+                      <span className="text-sm text-black font-WorkSansMedium mr-2">
+                        {restaurant.rating.toFixed(1)}
+                      </span>
+                    </>
+                  )}
+                  {restaurant.totalReviews > 0 && (
+                    <span className="text-sm text-black font-WorkSansMedium">
+                      ({restaurant.totalReviews} review{restaurant.totalReviews !== 1 ? 's' : ''})
+                    </span>
+                  )}
+                </div>
+              )}
+              <span className="text-black">•</span>
+              <span className="text-sm text-black font-WorkSansMedium ml-2">
+                Added by {restaurant.createdByEmail || 'Unknown'} • {restaurant.cuisine}
               </span>
             </div>
             

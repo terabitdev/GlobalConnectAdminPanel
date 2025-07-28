@@ -39,6 +39,7 @@ function AddRestaurant() {
   const [restaurantSuggestions, setRestaurantSuggestions] = useState([]);
   const [showRestaurantSuggestions, setShowRestaurantSuggestions] = useState(false);
   const [restaurantSuggestionLoading, setRestaurantSuggestionLoading] = useState(false);
+  const [initialTypingLoader, setInitialTypingLoader] = useState(false);
   const restaurantInputRef = useRef();
   const restaurantSessionTokenRef = useRef(null);
   const isSelectingRef = useRef(false);
@@ -51,7 +52,9 @@ function AddRestaurant() {
     phoneNumber: '',
     address: '',
     description: '',
-    priceRange: ''
+    priceRange: '',
+    rating: 0,
+    totalReviews: 0
   });
 
   // Fallback cities for when Google Places is not available
@@ -603,8 +606,15 @@ function AddRestaurant() {
     // Handle suggestions separately with more stable logic
     if (value.length >= 2 && useGooglePlaces) {
       setShowRestaurantSuggestions(true);
+      // Show initial typing loader for immediate feedback
+      if (value.length === 2) {
+        setInitialTypingLoader(true);
+        // Hide after short delay to show responsiveness
+        setTimeout(() => setInitialTypingLoader(false), 800);
+      }
     } else {
       setShowRestaurantSuggestions(false);
+      setInitialTypingLoader(false);
       if (value.length === 0) {
         setRestaurantSuggestions([]);
       }
@@ -649,7 +659,8 @@ function AddRestaurant() {
           'reservable',
           'wheelchair_accessible_entrance',
           'business_status',
-          'place_id'
+          'place_id',
+          'photos'
         ]
       };
 
@@ -660,7 +671,8 @@ function AddRestaurant() {
             types: place.types,
             serves_vegetarian_food: place.serves_vegetarian_food,
             reviews_count: place.reviews ? place.reviews.length : 0,
-            editorial_summary: place.editorial_summary
+            editorial_summary: place.editorial_summary,
+            photos_count: place.photos ? place.photos.length : 0
           });
           resolve(place);
         } else {
@@ -681,6 +693,131 @@ function AddRestaurant() {
     );
     
     return cityComponent ? cityComponent.long_name : '';
+  };
+
+  // Extract photo URLs from Google Places photos
+  const extractPhotoUrls = (photos, maxPhotos = 5) => {
+    if (!photos || photos.length === 0) return [];
+    
+    const photoUrls = [];
+    const photosToProcess = Math.min(photos.length, maxPhotos);
+    
+    for (let i = 0; i < photosToProcess; i++) {
+      const photo = photos[i];
+      if (photo.getUrl) {
+        try {
+          // Get high quality photo URL
+          const photoUrl = photo.getUrl({
+            maxWidth: 800,
+            maxHeight: 600
+          });
+          if (photoUrl) {
+            photoUrls.push(photoUrl);
+          }
+        } catch (error) {
+          console.error('Error getting photo URL:', error);
+        }
+      }
+    }
+    
+    console.log(`Extracted ${photoUrls.length} photo URLs from ${photos.length} available photos`);
+    return photoUrls;
+  };
+
+  // Download image from URL and convert to blob
+  const downloadImageAsBlob = async (imageUrl) => {
+    try {
+      console.log('Attempting to fetch image:', imageUrl);
+      
+      // Try direct fetch first
+      const response = await fetch(imageUrl, {
+        mode: 'cors',
+        credentials: 'omit'
+      });
+      
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+      
+      const blob = await response.blob();
+      console.log('Successfully downloaded image, blob size:', blob.size);
+      return blob;
+    } catch (error) {
+      console.error('Error downloading image from URL:', imageUrl, error);
+      
+      // Try creating an image element and converting to canvas (alternative approach)
+      try {
+        console.log('Trying alternative canvas approach...');
+        return await downloadImageViaCanvas(imageUrl);
+      } catch (canvasError) {
+        console.error('Canvas approach also failed:', canvasError);
+        return null;
+      }
+    }
+  };
+
+  // Alternative method using canvas to convert image to blob
+  const downloadImageViaCanvas = async (imageUrl) => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      
+      img.onload = () => {
+        try {
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          
+          canvas.width = img.width;
+          canvas.height = img.height;
+          
+          ctx.drawImage(img, 0, 0);
+          
+          canvas.toBlob((blob) => {
+            if (blob) {
+              console.log('Successfully converted image via canvas, blob size:', blob.size);
+              resolve(blob);
+            } else {
+              reject(new Error('Failed to convert canvas to blob'));
+            }
+          }, 'image/jpeg', 0.9);
+        } catch (error) {
+          reject(error);
+        }
+      };
+      
+      img.onerror = () => {
+        reject(new Error('Failed to load image'));
+      };
+      
+      img.src = imageUrl;
+    });
+  };
+
+  // Convert Google Places images to File objects for Firebase upload
+  const convertGoogleImagesToFiles = async (photoUrls) => {
+    const imageFiles = [];
+    
+    for (let i = 0; i < photoUrls.length; i++) {
+      const url = photoUrls[i];
+      console.log(`Downloading image ${i + 1} from Google Places...`);
+      
+      const blob = await downloadImageAsBlob(url);
+      if (blob) {
+        // Create a File object from the blob
+        const fileName = `google_places_image_${Date.now()}_${i}.jpg`;
+        const file = new File([blob], fileName, { type: 'image/jpeg' });
+        
+        imageFiles.push({
+          id: Date.now() + i,
+          url: url, // Keep original URL for preview
+          file: file, // File object for Firebase upload
+          isFromApi: true
+        });
+      }
+    }
+    
+    console.log(`Successfully prepared ${imageFiles.length} images for upload`);
+    return imageFiles;
   };
 
   // Extract cuisine from food items mentioned in reviews and description
@@ -1227,6 +1364,12 @@ function AddRestaurant() {
       setShowRestaurantSuggestions(false);
       setRestaurantSuggestions([]);
       
+      // Clear previous images when selecting a new restaurant
+      setSelectedImages([]);
+      
+      // Clear any initial typing loader
+      setInitialTypingLoader(false);
+      
       // Set the restaurant name immediately and ensure it's stable
       setFormData(prev => ({ 
         ...prev, 
@@ -1259,6 +1402,7 @@ function AddRestaurant() {
           let cuisine = '';
           let priceRange = '';
           let description = '';
+          let photoUrls = [];
 
           try {
             city = extractCityFromPlace(placeDetails);
@@ -1338,9 +1482,20 @@ function AddRestaurant() {
           } catch (error) {
             console.error('Error generating description:', error);
           }
+
+          try {
+            photoUrls = extractPhotoUrls(placeDetails.photos);
+            console.log('Photos extracted:', photoUrls.length);
+          } catch (error) {
+            console.error('Error extracting photos:', error);
+          }
           
-          console.log('All extracted data:', { city, cuisine, priceRange, description });
+          console.log('All extracted data:', { city, cuisine, priceRange, description, photos: photoUrls.length });
         
+          // Extract rating and review count only
+          const rating = placeDetails.rating || 0;
+          const totalReviews = placeDetails.user_ratings_total || 0;
+
           setFormData(prev => {
             const newData = {
               ...prev,
@@ -1352,6 +1507,8 @@ function AddRestaurant() {
               cuisineType: cuisine ? cuisine : prev.cuisineType,
               priceRange: priceRange ? priceRange : prev.priceRange,
               description: description ? description : prev.description,
+              rating: rating,
+              totalReviews: totalReviews
             };
             console.log('Updated form data:', newData);
             return newData;
@@ -1367,6 +1524,48 @@ function AddRestaurant() {
             }
           } catch (error) {
             console.error('Error setting custom price range:', error);
+          }
+          
+          // Set photos if available - try to convert for Firebase, fallback to direct URLs
+          if (photoUrls.length > 0) {
+            console.log('Processing Google Places images:', photoUrls);
+            
+            try {
+              console.log('Attempting to convert Google Places images for Firebase upload...');
+              setRestaurantSuggestionLoading(true); // Show loading while downloading images
+              
+              const imageFiles = await convertGoogleImagesToFiles(photoUrls);
+              
+              if (imageFiles.length > 0) {
+                console.log(`Successfully converted ${imageFiles.length} images for Firebase upload`);
+                setSelectedImages(prev => [...prev, ...imageFiles]);
+              } else {
+                console.log('No images were successfully converted, using direct URLs as display only');
+                // Use direct URLs for display but mark as non-uploadable
+                const displayImages = photoUrls.map((url, index) => ({
+                  id: Date.now() + index,
+                  url: url,
+                  file: null,
+                  isFromApi: true,
+                  displayOnly: true // Flag to indicate these are for display only
+                }));
+                setSelectedImages(prev => [...prev, ...displayImages]);
+              }
+            } catch (error) {
+              console.error('Error processing photos:', error);
+              // If conversion fails completely, use direct URLs for display
+              console.log('Falling back to direct URLs for display');
+              const fallbackImages = photoUrls.map((url, index) => ({
+                id: Date.now() + index,
+                url: url,
+                file: null,
+                isFromApi: true,
+                displayOnly: true
+              }));
+              setSelectedImages(prev => [...prev, ...fallbackImages]);
+            } finally {
+              setRestaurantSuggestionLoading(false);
+            }
           }
         } catch (error) {
           console.error('Error in data extraction process:', error);
@@ -1387,7 +1586,8 @@ function AddRestaurant() {
           cuisine: cuisine,
           priceRange: priceRange,
           description: description,
-          rating: placeDetails.rating,
+          rating: rating,
+          totalReviews: totalReviews,
           priceLevel: placeDetails.price_level,
           types: placeDetails.types,
           services: {
@@ -1395,41 +1595,58 @@ function AddRestaurant() {
             takeout: placeDetails.takeout,
             delivery: placeDetails.delivery,
             reservable: placeDetails.reservable
-          }
+          },
+          photos: photoUrls.length
         });
 
-        // Show auto-fill success message
+        // Show auto-fill success message - ALWAYS show when restaurant is selected
         try {
           const filledFields = [];
+          
+          // Always add restaurant name since that's definitely filled
+          filledFields.push('restaurant name');
+          
           if (placeDetails.formatted_address || placeDetails.vicinity) filledFields.push('address');
           if (placeDetails.formatted_phone_number) filledFields.push('phone');
           if (city) filledFields.push('city');
           if (cuisine) filledFields.push('cuisine type');
           if (priceRange) filledFields.push('price range');
           if (description) filledFields.push('description');
+          if (photoUrls && photoUrls.length > 0) filledFields.push(`${photoUrls.length} photos`);
+          if (rating > 0) filledFields.push(`rating (${rating} stars)`);
+          if (totalReviews > 0) filledFields.push(`${totalReviews} reviews`);
+
+          console.log('DEBUG - Place details values:', {
+            name: placeDetails.name,
+            address: placeDetails.formatted_address || placeDetails.vicinity,
+            phone: placeDetails.formatted_phone_number,
+            city: city,
+            cuisine: cuisine,
+            priceRange: priceRange,
+            description: description ? description.substring(0, 50) + '...' : null,
+            photos: photoUrls ? photoUrls.length : 0,
+            rating: rating,
+            totalReviews: totalReviews
+          });
 
           console.log('Fields that were filled:', filledFields);
 
-          if (filledFields.length > 0) {
-            console.log('Showing auto-fill success message');
-            const message = `Auto-filled: ${filledFields.join(', ')}`;
-            console.log('Setting autoFillMessage to:', message);
-            console.log('Setting showAutoFillAlert to: true');
-            
-            // Use setTimeout to ensure state updates are processed
-            setTimeout(() => {
-              setAutoFillMessage(message);
-              setShowAutoFillAlert(true);
-            }, 100);
-            
-            // Auto-hide after 4 seconds (longer to see it)
-            setTimeout(() => {
-              console.log('Hiding auto-fill alert');
-              setShowAutoFillAlert(false);
-            }, 4000);
-          } else {
-            console.log('No fields were auto-filled');
-          }
+          // Always show the alert when a restaurant is selected (at minimum restaurant name is filled)
+          const message = `Auto-filled: ${filledFields.join(', ')}`;
+          console.log('Setting autoFillMessage to:', message);
+          console.log('Setting showAutoFillAlert to: true');
+          
+          setAutoFillMessage(message);
+          setShowAutoFillAlert(true);
+          
+          console.log('✅ Auto-fill alert should now be visible!');
+          
+          // Auto-hide after 5 seconds
+          setTimeout(() => {
+            console.log('Hiding auto-fill alert after 5 seconds');
+            setShowAutoFillAlert(false);
+          }, 5000);
+          
         } catch (error) {
           console.error('Error showing auto-fill success message:', error);
         }
@@ -1522,7 +1739,7 @@ function AddRestaurant() {
             required
             autoComplete="off"
           />
-          {restaurantSuggestionLoading ? (
+          {(restaurantSuggestionLoading || initialTypingLoader) ? (
             <div className="absolute right-4 top-1/2 transform -translate-y-1/2">
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#4BADE6]"></div>
             </div>
@@ -1534,15 +1751,15 @@ function AddRestaurant() {
           )}
           
           {/* Restaurant suggestions dropdown */}
-          {showRestaurantSuggestions && restaurantSuggestions.length > 0 && (
+          {showRestaurantSuggestions && (restaurantSuggestions.length > 0 || initialTypingLoader || restaurantSuggestionLoading) && (
             <div className="restaurant-suggestions-dropdown absolute left-0 right-0 bg-white border border-gray-200 rounded-lg shadow-lg z-10 mt-1 max-h-56 overflow-y-auto">
-              {restaurantSuggestionLoading && (
+              {(restaurantSuggestionLoading || initialTypingLoader) && (
                 <div className="px-4 py-2 text-gray-500 flex items-center">
                   <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-[#4BADE6] mr-2"></div>
-                  Loading restaurants...
+                  {initialTypingLoader ? 'Searching restaurants...' : 'Loading restaurants...'}
                 </div>
               )}
-              {!restaurantSuggestionLoading && restaurantSuggestions.map((suggestion) => (
+              {!restaurantSuggestionLoading && !initialTypingLoader && restaurantSuggestions.map((suggestion) => (
                 <div
                   key={suggestion.placeId}
                   onClick={(e) => {
@@ -1697,7 +1914,9 @@ function AddRestaurant() {
               phoneNumber: data.phoneNumber || "",
               address: data.address || "",
               description: data.description || "",
-              priceRange: data.priceRange || ""
+              priceRange: data.priceRange || "",
+              rating: data.rating || 0,
+              totalReviews: data.totalReviews || 0
             });
             if (data.images && data.images.length > 0) {
               setSelectedImages(
@@ -1846,17 +2065,23 @@ function AddRestaurant() {
 
       let imageUrls = [];
       
-      // Handle image uploads for new images
-      const newImages = selectedImages.filter((img) => img.file);
+      // Handle image uploads for new images (both user uploaded and successfully converted Google images)
+      const newImages = selectedImages.filter((img) => img.file && !img.displayOnly);
       if (newImages.length > 0) {
+        console.log(`Uploading ${newImages.length} images to Firebase Storage...`);
         imageUrls = await uploadImagesToStorage(newImages);
       }
+      
+      // Handle display-only images (direct URLs that couldn't be downloaded)
+      const displayOnlyImages = selectedImages.filter((img) => img.displayOnly);
+      const displayOnlyUrls = displayOnlyImages.map(img => img.url);
 
       if (isEditMode) {
-        // Merge old and new images for edit mode
+        // Merge old images, uploaded images, and display-only images for edit mode
         const allImages = [
-          ...selectedImages.filter((img) => !img.file).map((img) => img.url),
+          ...selectedImages.filter((img) => !img.file && !img.displayOnly).map((img) => img.url),
           ...imageUrls,
+          ...displayOnlyUrls,
         ];
         
         const restaurantData = {
@@ -1869,13 +2094,17 @@ function AddRestaurant() {
           description: formData.description.trim(),
           priceRange: formData.priceRange || '',
           images: allImages,
+          rating: formData.rating || 0,
+          totalReviews: formData.totalReviews || 0,
           updatedAt: serverTimestamp(),
         };
 
         await updateDoc(doc(db, "restaurants", restaurantId), restaurantData);
         setSuccessMessage('Restaurant updated successfully!');
       } else {
-        // Create new restaurant
+        // Create new restaurant - combine uploaded and display-only images
+        const allNewImages = [...imageUrls, ...displayOnlyUrls];
+        
         const restaurantData = {
           restaurantName: formData.restaurantName.trim(),
           city: formData.city,
@@ -1885,7 +2114,9 @@ function AddRestaurant() {
           address: formData.address.trim(),
           description: formData.description.trim(),
           priceRange: formData.priceRange || '',
-          images: imageUrls,
+          images: allNewImages,
+          rating: formData.rating || 0,
+          totalReviews: formData.totalReviews || 0,
           createdAt: serverTimestamp(),
           updatedAt: serverTimestamp(),
           createdByEmail: user?.email || '',
@@ -1903,7 +2134,9 @@ function AddRestaurant() {
           phoneNumber: '',
           address: '',
           description: '',
-          priceRange: ''
+          priceRange: '',
+          rating: 0,
+          totalReviews: 0
         });
         setSelectedImages([]);
       }
@@ -1925,6 +2158,44 @@ function AddRestaurant() {
 
   return (
     <div className="flex h-screen bg-gray-50 font-PlusJakarta">
+
+      {/* Auto-fill Alert - Fixed at top right corner */}
+      {showAutoFillAlert && (
+        <div className="fixed top-4 right-4 z-[9999] max-w-sm">
+          <div className="bg-gradient-to-r from-green-50 to-blue-50 border-l-4 border-green-400 p-4 rounded-lg shadow-2xl transform transition-all duration-300 ease-in-out">
+            <div className="flex items-start">
+              <div className="flex-shrink-0">
+                <CheckCircle className="h-6 w-6 text-green-500" />
+              </div>
+              <div className="ml-3 flex-1">
+                <h3 className="text-sm font-bold text-green-900 flex items-center">
+                  <span className="mr-2">✅</span>
+                  Auto-fill Success!
+                </h3>
+                <p className="mt-1 text-xs text-green-800 font-medium">
+                  {autoFillMessage || 'Fields have been auto-filled'}
+                </p>
+                <div className="mt-2">
+                  <div className="h-1 bg-green-200 rounded-full overflow-hidden">
+                    <div className="h-full bg-gradient-to-r from-green-400 to-blue-400 w-full animate-pulse"></div>
+                  </div>
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={() => {
+                  console.log('Auto-fill alert close button clicked');
+                  setShowAutoFillAlert(false);
+                }}
+                className="ml-2 text-green-500 hover:text-green-700 transition-colors p-1 rounded-full hover:bg-green-100"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Sidebar Component */}
       <Sidebar
         ref={sidebarRef}
@@ -2080,34 +2351,6 @@ function AddRestaurant() {
                   </div>
                 )}
 
-                {/* Auto-fill Alert */}
-                {showAutoFillAlert && (
-                  <div className="fixed top-20 right-4 z-50 max-w-md">
-                    <div className="bg-blue-50 border-l-4 border-blue-400 p-4 rounded-lg shadow-lg transform transition-all duration-500 ease-in-out">
-                      <div className="flex items-center">
-                        <CheckCircle className="h-5 w-5 text-blue-400 mr-3 flex-shrink-0" />
-                        <div className="flex-1">
-                          <h3 className="text-sm font-semibold text-blue-800">
-                            Auto-filled!
-                          </h3>
-                          <p className="mt-1 text-sm text-blue-700">
-                            {autoFillMessage || 'Fields have been auto-filled'}
-                          </p>
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => {
-                            console.log('Auto-fill alert close button clicked');
-                            setShowAutoFillAlert(false);
-                          }}
-                          className="ml-4 text-blue-400 hover:text-blue-600 transition-colors p-1 rounded-full hover:bg-blue-100"
-                        >
-                          <X className="h-4 w-4" />
-                        </button>
-                      </div>
-                    </div>
-                  </div>
-                )}
 
 
                 {/* Photo Upload Section */}
@@ -2133,24 +2376,38 @@ function AddRestaurant() {
 
                   {/* Image Thumbnails */}
                   {selectedImages.length > 0 && (
-                    <div className="flex justify-center space-x-2 mb-4">
-                      {selectedImages.map((image) => (
-                        <div key={image.id} className="relative">
-                          <img
-                            src={image.url}
-                            alt="Restaurant preview"
-                            className="w-16 h-16 rounded-lg object-cover"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => removeImage(image.id)}
-                            className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors"
-                            disabled={isSubmitting}
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ))}
+                    <div className="mb-4">
+                      <div className="flex flex-wrap gap-2 justify-center">
+                        {selectedImages.map((image) => (
+                          <div key={image.id} className="relative group">
+                            <img
+                              src={image.url}
+                              alt="Restaurant preview"
+                              className="w-24 h-24 rounded-lg object-cover border-2 border-gray-200"
+                            />
+                            {image.isFromApi && (
+                              <div className="absolute top-1 left-1 bg-blue-500 text-white text-xs px-2 py-0.5 rounded">
+                                {image.displayOnly ? 'Google (Display)' : 'From Google'}
+                              </div>
+                            )}
+                            {!image.isFromApi && (
+                              <button
+                                type="button"
+                                onClick={() => removeImage(image.id)}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors opacity-0 group-hover:opacity-100"
+                                disabled={isSubmitting}
+                              >
+                                <X size={12} />
+                              </button>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                      {selectedImages.some(img => img.isFromApi) && (
+                        <p className="text-xs text-gray-500 text-center mt-2">
+                          Images from Google Places are automatically included
+                        </p>
+                      )}
                     </div>
                   )}
                 </div>
