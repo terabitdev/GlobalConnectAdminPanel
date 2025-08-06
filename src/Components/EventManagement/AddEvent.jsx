@@ -57,6 +57,8 @@ function AddEvent() {
   const placesServiceRef = useRef(null);
   const autocompleteSessionTokenRef = useRef(null);
 
+
+
   const [formData, setFormData] = useState({
     eventName: "",
     city: "",
@@ -450,6 +452,39 @@ function AddEvent() {
     return Promise.all(uploadPromises);
   };
 
+
+
+  // Create notification for event
+  const createEventNotification = async (eventData, eventId) => {
+    try {
+      const docRef = await addDoc(collection(db, "notifications"), {
+        title: "New Event Added!",
+        message: `Check out the new event: ${eventData.eventName}`,
+        eventId: eventId,
+        eventName: eventData.eventName,
+        eventCity: eventData.city || "",
+        eventDate: eventData.date,
+        eventTime: eventData.time,
+        createdAt: serverTimestamp(),
+        type: "event_created",
+        targetAudience: "user", // Only for non-admin users
+        isRead: false,
+      });
+      
+      console.log("Event notification created successfully with ID:", docRef.id);
+      
+      // Update the notification document to replace eventId with notification document ID
+      await updateDoc(doc(db, "notifications", docRef.id), {
+        eventId: docRef.id
+      });
+      
+      console.log("Updated notification with notification document ID as eventId");
+    } catch (error) {
+      console.error("Error creating event notification: ", error);
+      // Don't throw error to prevent blocking event creation
+    }
+  };
+
   // Save event to Firestore
   const saveEventToFirestore = async (eventData, imageUrls) => {
     try {
@@ -463,6 +498,10 @@ function AddEvent() {
       };
 
       const docRef = await addDoc(collection(db, "events"), eventDocument);
+      
+      // Create notification after event is successfully created
+      await createEventNotification(eventData, docRef.id);
+      
       return docRef.id;
     } catch (error) {
       console.error("Error saving event: ", error);
