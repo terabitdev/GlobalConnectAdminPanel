@@ -64,7 +64,6 @@ function AddEvent() {
     city: "",
     date: "",
     time: "",
-    timePeriod: "AM", // Add time period (AM/PM)
     eventType: "",
     featuredEvent: false,
     venue: "",
@@ -379,7 +378,6 @@ function AddEvent() {
                city: data.city || "",
                date: data.date || "",
                time: data.time || "",
-               timePeriod: data.timePeriod || "AM",
                eventType: data.eventType || "",
                featuredEvent: data.featuredEvent || false,
                venue: data.venue || "",
@@ -459,8 +457,23 @@ function AddEvent() {
     // Create notification for event
   const createEventNotification = async (eventData, eventId) => {
     try {
-      // Format time with AM/PM
-      const formattedTime = `${eventData.time} ${eventData.timePeriod}`;
+      // Format time to include AM/PM from the time input
+      const formatTimeWithAMPM = (timeString) => {
+        if (!timeString) return "";
+        
+        try {
+          const [hours, minutes] = timeString.split(':');
+          const hour = parseInt(hours, 10);
+          const ampm = hour >= 12 ? 'PM' : 'AM';
+          const displayHour = hour % 12 || 12;
+          return `${displayHour}:${minutes} ${ampm}`;
+        } catch (error) {
+          console.error("Error formatting time:", error);
+          return timeString; // Return original if formatting fails
+        }
+      };
+
+      const formattedTime = formatTimeWithAMPM(eventData.time);
       
       const docRef = await addDoc(collection(db, "notifications"), {
         title: "New Event Added!",
@@ -558,7 +571,6 @@ function AddEvent() {
          city: "",
          date: "",
          time: "",
-         timePeriod: "AM",
          eventType: "",
          featuredEvent: false,
          venue: "",
@@ -1030,30 +1042,20 @@ function AddEvent() {
 
                                              <div>
                          <label className="block text-sm font-medium text-thirdBlack mb-2">Time *</label>
-                         <div className="flex gap-2">
-                           <div className="relative flex-1">
-                             <input
-                               ref={timeInputRef}
-                               type="time"
-                               value={formData.time}
-                               onChange={(e) => handleInputChange("time", e.target.value)}
-                               className="time-input w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
-                               required
-                             />
-                             <Clock
-                               size={18}
-                               className="absolute right-4 top-1/2 transform -translate-y-1/2 text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
-                               onClick={handleTimeIconClick}
-                             />
-                           </div>
-                           <select
-                             value={formData.timePeriod}
-                             onChange={(e) => handleInputChange("timePeriod", e.target.value)}
-                             className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
-                           >
-                             <option value="AM">AM</option>
-                             <option value="PM">PM</option>
-                           </select>
+                         <div className="relative">
+                           <input
+                             ref={timeInputRef}
+                             type="time"
+                             value={formData.time}
+                             onChange={(e) => handleInputChange("time", e.target.value)}
+                             className="time-input w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
+                             required
+                           />
+                           <Clock
+                             size={18}
+                             className="absolute right-4 top-1/2 transform -translate-y-1/2 text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
+                             onClick={handleTimeIconClick}
+                           />
                          </div>
                        </div>
                     </div>
