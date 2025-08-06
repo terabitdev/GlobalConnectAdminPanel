@@ -64,6 +64,7 @@ function AddEvent() {
     city: "",
     date: "",
     time: "",
+    timePeriod: "AM", // Add time period (AM/PM)
     eventType: "",
     featuredEvent: false,
     venue: "",
@@ -373,17 +374,18 @@ function AddEvent() {
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
             const data = docSnap.data();
-            setFormData({
-              eventName: data.eventName || "",
-              city: data.city || "",
-              date: data.date || "",
-              time: data.time || "",
-              eventType: data.eventType || "",
-              featuredEvent: data.featuredEvent || false,
-              venue: data.venue || "",
-              description: data.description || "",
-              ticketLink: data.ticketLink || "",
-            });
+                         setFormData({
+               eventName: data.eventName || "",
+               city: data.city || "",
+               date: data.date || "",
+               time: data.time || "",
+               timePeriod: data.timePeriod || "AM",
+               eventType: data.eventType || "",
+               featuredEvent: data.featuredEvent || false,
+               venue: data.venue || "",
+               description: data.description || "",
+               ticketLink: data.ticketLink || "",
+             });
             if (data.images && data.images.length > 0) {
               setSelectedImages(
                 data.images.map((url, idx) => ({
@@ -454,25 +456,26 @@ function AddEvent() {
 
 
 
-  // Create notification for event
+    // Create notification for event
   const createEventNotification = async (eventData, eventId) => {
     try {
+      // Format time with AM/PM
+      const formattedTime = `${eventData.time} ${eventData.timePeriod}`;
+      
       const docRef = await addDoc(collection(db, "notifications"), {
         title: "New Event Added!",
-        message: `Check out the new event: ${eventData.eventName}`,
+        message: `${eventData.eventName}`,
         eventId: eventId,
         eventName: eventData.eventName,
         eventCity: eventData.city || "",
         eventDate: eventData.date,
-        eventTime: eventData.time,
+        eventTime: formattedTime,
         createdAt: serverTimestamp(),
         type: "event_created",
         targetAudience: "user", // Only for non-admin users
         isRead: false,
       });
-      
-      console.log("Event notification created successfully with ID:", docRef.id);
-      
+             
       // Update the notification document to replace eventId with notification document ID
       await updateDoc(doc(db, "notifications", docRef.id), {
         eventId: docRef.id
@@ -550,17 +553,18 @@ function AddEvent() {
       
       setShowSuccessAlert(true);
       setError("");
-      setFormData({
-        eventName: "",
-        city: "",
-        date: "",
-        time: "",
-        eventType: "",
-        featuredEvent: false,
-        venue: "",
-        description: "",
-        ticketLink: "",
-      });
+             setFormData({
+         eventName: "",
+         city: "",
+         date: "",
+         time: "",
+         timePeriod: "AM",
+         eventType: "",
+         featuredEvent: false,
+         venue: "",
+         description: "",
+         ticketLink: "",
+       });
       setSelectedImages([]);
     } catch (error) {
       setError(
@@ -1024,24 +1028,34 @@ function AddEvent() {
                         </div>
                       </div>
 
-                      <div>
-                        <label className="block text-sm font-medium text-thirdBlack mb-2">Time *</label>
-                        <div className="relative">
-                          <input
-                            ref={timeInputRef}
-                            type="time"
-                            value={formData.time}
-                            onChange={(e) => handleInputChange("time", e.target.value)}
-                            className="time-input w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
-                            required
-                          />
-                          <Clock
-                            size={18}
-                            className="absolute right-4 top-1/2 transform -translate-y-1/2 text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
-                            onClick={handleTimeIconClick}
-                          />
-                        </div>
-                      </div>
+                                             <div>
+                         <label className="block text-sm font-medium text-thirdBlack mb-2">Time *</label>
+                         <div className="flex gap-2">
+                           <div className="relative flex-1">
+                             <input
+                               ref={timeInputRef}
+                               type="time"
+                               value={formData.time}
+                               onChange={(e) => handleInputChange("time", e.target.value)}
+                               className="time-input w-full px-4 py-3 pr-12 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
+                               required
+                             />
+                             <Clock
+                               size={18}
+                               className="absolute right-4 top-1/2 transform -translate-y-1/2 text-blue-500 cursor-pointer hover:text-blue-600 transition-colors"
+                               onClick={handleTimeIconClick}
+                             />
+                           </div>
+                           <select
+                             value={formData.timePeriod}
+                             onChange={(e) => handleInputChange("timePeriod", e.target.value)}
+                             className="px-4 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-[#FAFAFB] font-PlusJakartaSans text-grayModern"
+                           >
+                             <option value="AM">AM</option>
+                             <option value="PM">PM</option>
+                           </select>
+                         </div>
+                       </div>
                     </div>
                   </div>
 
